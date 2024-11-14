@@ -9,6 +9,8 @@ repository = "https://github.com/astral4/site"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
+anyhow = "1.0.93"
+walkdir = "2.5.0"
 
 [lints.rust]
 async_fn_in_trait = "allow"
