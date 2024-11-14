@@ -1,13 +1,18 @@
 use anyhow::{anyhow, Context, Result};
-use walkdir::WalkDir;
+use std::{fs::read_dir, path::PathBuf};
 
 fn main() -> Result<()> {
-    let content_path = std::env::args()
+    let content_path: PathBuf = std::env::args()
         .next()
-        .ok_or_else(|| anyhow!("file path to content was not provided"))?;
+        .ok_or_else(|| anyhow!("path to content was not provided"))?
+        .into();
 
-    for entry in WalkDir::new(content_path) {
-        let file = entry.context("failed to read content entry")?;
+    for article_dir in
+        read_dir(content_path).context("failed to start traversal of content at supplied path")?
+    {
+        let article_dir_path = article_dir
+            .context("failed to access content entry")?
+            .path();
     }
 
     Ok(())
