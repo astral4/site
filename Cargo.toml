@@ -10,6 +10,7 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 anyhow = "1.0.93"
+tap = "1.0.1"
 
 [lints.rust]
 async_fn_in_trait = "allow"
