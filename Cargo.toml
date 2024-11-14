@@ -1,0 +1,38 @@
+[package]
+name = "ssg"
+version = "0.0.0"
+authors = ["astral4"]
+edition = "2021"
+description = "Static site generator for my personal website"
+readme = "README.md"
+repository = "https://github.com/astral4/site"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+
+[lints.rust]
+async_fn_in_trait = "allow"
+ffi_unwind_calls = "warn"
+let_underscore_drop = "deny"
+macro_use_extern_crate = "deny"
+meta_variable_misuse = "deny"
+missing_abi = "deny"
+missing_copy_implementations = "warn"
+missing_debug_implementations = "warn"
+non_ascii_idents = "forbid"
+non_local_definitions = "warn"
+nonstandard_style = { level = "deny", priority = 1 }
+redundant_lifetimes = "deny"
+rust_2018_idioms = { level = "deny", priority = 1 }
+trivial_casts = "deny"
+trivial_numeric_casts = "deny"
+unit_bindings = "deny"
+unreachable_pub = "deny"
+unused_import_braces = "deny"
+unused_lifetimes = "deny"
+unused_macro_rules = "deny"
+unused_qualifications = "deny"
+
+[lints.clippy]
+module_name_repetitions = { level = "allow", priority = 1 }
+pedantic = "warn"
