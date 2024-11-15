@@ -36,7 +36,7 @@ impl KatexEngine {
     /// This function returns an error if
     /// - the rendering settings could not be initialized
     /// - the `katex.renderToString()` function could not be found
-    /// - the `katex.renderToString()` function failed to run
+    /// - the `katex.renderToString()` function failed to run (e.g. due to invalid LaTeX)
     pub fn latex_to_html(&self, src: &str, mode: RenderMode) -> Result<String> {
         self.context.with(|ctx| {
             let settings =
