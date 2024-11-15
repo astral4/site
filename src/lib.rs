@@ -1,5 +1,5 @@
-use anyhow::{Context as _, Result};
-use rquickjs::{Context, Function, Object, Runtime};
+use anyhow::{Context as _, Error, Result};
+use rquickjs::{Context, Exception, Function, Object, Runtime};
 
 const KATEX_SRC: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/katex/katex.min.js"));
 
@@ -57,7 +57,13 @@ impl KatexEngine {
                 .get::<_, Function<'_>>("renderToString")
                 .context("failed to find `katex.renderToString()`")?
                 .call((src, settings))
-                .context("failed to run `katex.renderToString()`")
+                .map_err(|e| {
+                    let mut err = Error::new(e);
+                    if let Some(msg) = ctx.catch().as_exception().and_then(Exception::message) {
+                        err = err.context(msg);
+                    }
+                    err.context("failed to run `katex.renderToString()`")
+                })
         })
     }
 }
