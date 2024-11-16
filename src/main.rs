@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Context, Result};
 use pulldown_cmark::{Event, Options, Parser, TextMergeStream};
-use ssg::{KatexEngine, RenderMode};
+use ssg::{LatexConverter, RenderMode};
 use std::{
     fs::{read_dir, read_to_string},
     path::PathBuf,
@@ -17,8 +17,8 @@ fn main() -> Result<()> {
         | Options::ENABLE_YAML_STYLE_METADATA_BLOCKS
         | Options::ENABLE_MATH;
 
-    let engine =
-        KatexEngine::new().context("failed to initialize LaTeX-to-HTML conversion engine")?;
+    let latex_converter =
+        LatexConverter::new().context("failed to initialize LaTeX-to-HTML conversion engine")?;
 
     for article_dir in
         read_dir(content_path).context("failed to start traversal of all articles")?
@@ -38,11 +38,11 @@ fn main() -> Result<()> {
             Some(|_| None), // TODO: resolve "broken" links such as inter-article links
         ))
         .map(|event| match event {
-            Event::InlineMath(src) => engine
+            Event::InlineMath(src) => latex_converter
                 .latex_to_html(&src, RenderMode::Inline)
                 .map(Into::into)
                 .map(Event::InlineHtml),
-            Event::DisplayMath(src) => engine
+            Event::DisplayMath(src) => latex_converter
                 .latex_to_html(&src, RenderMode::Display)
                 .map(Into::into)
                 .map(Event::InlineHtml),

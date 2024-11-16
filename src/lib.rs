@@ -3,7 +3,7 @@ use rquickjs::{Context, Exception, Function, Object, Runtime};
 
 const KATEX_SRC: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/katex/katex.min.js"));
 
-pub struct KatexEngine {
+pub struct LatexConverter {
     context: Context,
 }
 
@@ -13,7 +13,7 @@ pub enum RenderMode {
     Display,
 }
 
-impl KatexEngine {
+impl LatexConverter {
     /// # Errors
     /// This function returns an error for:
     /// - failed initialization of the underlying JavaScript runtime from `rquickjs`
@@ -70,17 +70,17 @@ impl KatexEngine {
 
 #[cfg(test)]
 mod test {
-    use crate::{KatexEngine, RenderMode};
+    use crate::{LatexConverter, RenderMode};
 
     #[test]
     fn latex_to_html() {
-        let engine = KatexEngine::new().expect("engine initialization should succeed");
+        let converter = LatexConverter::new().expect("engine initialization should succeed");
 
-        let inline_html = engine
+        let inline_html = converter
             .latex_to_html("2x+3y=4z", RenderMode::Inline)
             .expect("inline LaTeX conversion should succeed");
 
-        let display_html = engine
+        let display_html = converter
             .latex_to_html("2x+3y=4z", RenderMode::Display)
             .expect("display LaTeX conversion should succeed");
 
@@ -93,9 +93,9 @@ mod test {
     #[should_panic = "conversion should fail on invalid LaTeX"]
     #[test]
     fn invalid_latex() {
-        let engine = KatexEngine::new().expect("engine initialization should succeed");
+        let converter = LatexConverter::new().expect("engine initialization should succeed");
 
-        engine
+        converter
             .latex_to_html("\\frac{", RenderMode::Inline)
             .expect("conversion should fail on invalid LaTeX");
     }
