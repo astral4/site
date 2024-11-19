@@ -58,9 +58,9 @@ impl LatexConverter {
 
             ctx.globals()
                 .get::<_, Object<'_>>("katex")
-                .context("failed to find `katex` namespace")?
+                .context("failed to find the namespace `katex`")?
                 .get::<_, Function<'_>>("renderToString")
-                .context("failed to find `katex.renderToString()`")?
+                .context("failed to find the function `katex.renderToString()`")?
                 .call((src, settings))
                 .map_err(|e| {
                     let mut err = Error::new(e);
@@ -86,7 +86,7 @@ impl SyntaxHighlighter {
         let syntaxes = SyntaxSet::load_defaults_newlines();
         let theme = ThemeSet::load_defaults()
             .themes
-            .remove("base16-ocean.light") // we call `BTreeMap::remove()` instead of `BTreeMap::get()` to obtain an owned `Theme`
+            .remove("base16-ocean.light") // to obtain an owned `Theme`, we call `BTreeMap::remove()` instead of `BTreeMap::get()`
             .expect("default theme set should include \"base16-ocean.light\"");
 
         Self { syntaxes, theme }
