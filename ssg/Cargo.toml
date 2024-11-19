@@ -11,7 +11,7 @@ license.workspace = true
 [dependencies]
 anyhow = "1.0.93"
 pulldown-cmark = { version = "0.12.2", default-features = false }
-rquickjs = { version = "0.7.0", features = ["parallel", "rust-alloc"] }
+rquickjs = { version = "0.8.0", features = ["parallel", "rust-alloc"] }
 syntect = { version = "5.2.0", default-features = false, features = ["default-syntaxes", "default-themes", "html", "regex-onig"] }
 tap = "1.0.1"
 
