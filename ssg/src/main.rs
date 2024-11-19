@@ -6,7 +6,6 @@ use std::{
     fs::{read_dir, read_to_string},
     path::PathBuf,
 };
-use tap::Pipe;
 
 fn main() -> Result<()> {
     let content_path: PathBuf = args()
@@ -30,9 +29,7 @@ fn main() -> Result<()> {
             .context("failed to access article directory")?
             .path();
 
-        let article_text = article_dir_path
-            .join("index.md")
-            .pipe(read_to_string)
+        let article_text = read_to_string(article_dir_path.join("index.md"))
             .context("failed to read article text file")?;
 
         let mut is_in_code_block = false;
