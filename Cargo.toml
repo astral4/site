@@ -1,7 +1,7 @@
 [package]
 name = "ssg"
 version = "0.0.0"
-authors = ["astral4"]
+authors = ["Kyle Chen"]
 edition = "2021"
 description = "Static site generator for my personal website"
 readme = "README.md"
