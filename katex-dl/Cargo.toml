@@ -9,6 +9,9 @@ repository.workspace = true
 license.workspace = true
 
 [dependencies]
+anyhow.workspace = true
+reqwest = { version = "0.12.9", default-features = false, features = ["http2", "rustls-tls"] }
+tokio = { version = "1.41.1", features = ["macros", "rt-multi-thread"] }
 
 [lints]
 workspace = true
