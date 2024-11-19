@@ -69,10 +69,12 @@ fn main() -> Result<()> {
             }
             Event::InlineMath(src) => latex_converter
                 .latex_to_html(&src, RenderMode::Inline)
+                .map_err(|e| e.context("failed to convert LaTeX to HTML"))
                 .map(Into::into)
                 .map(Event::InlineHtml),
             Event::DisplayMath(src) => latex_converter
                 .latex_to_html(&src, RenderMode::Display)
+                .map_err(|e| e.context("failed to convert LaTeX to HTML"))
                 .map(Into::into)
                 .map(Event::InlineHtml),
             _ => Ok(event),
