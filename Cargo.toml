@@ -12,6 +12,7 @@ license = "MIT OR Apache-2.0"
 anyhow = "1.0.93"
 pulldown-cmark = { version = "0.12.2", default-features = false }
 rquickjs = { version = "0.6.2", features = ["parallel", "rust-alloc"] }
+syntect = { version = "5.2.0", default-features = false, features = ["default-syntaxes", "default-themes", "html", "regex-onig"] }
 tap = "1.0.1"
 
 [lints.rust]
@@ -38,6 +39,7 @@ unused_qualifications = "deny"
 
 [lints.clippy]
 module_name_repetitions = { level = "allow", priority = 1 }
+new_without_default = { level = "allow", priority = 1 }
 pedantic = "warn"
 
 [profile.release]

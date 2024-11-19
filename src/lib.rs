@@ -1,5 +1,10 @@
-use anyhow::{Context as _, Error, Result};
+use anyhow::{anyhow, Context as _, Error, Result};
 use rquickjs::{Context, Exception, Function, Object, Runtime};
+use syntect::{
+    highlighting::{Theme, ThemeSet},
+    html::highlighted_html_for_string,
+    parsing::SyntaxSet,
+};
 
 const KATEX_SRC: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/katex/katex.min.js"));
 
@@ -68,9 +73,42 @@ impl LatexConverter {
     }
 }
 
+pub struct SyntaxHighlighter {
+    syntaxes: SyntaxSet,
+    theme: Theme,
+}
+
+impl SyntaxHighlighter {
+    #[must_use]
+    /// # Panics
+    /// This function panics if the default theme set of `syntect` does not contain "base16-ocean.light".
+    pub fn new() -> Self {
+        let syntaxes = SyntaxSet::load_defaults_newlines();
+        let theme = ThemeSet::load_defaults()
+            .themes
+            .remove("base16-ocean.light") // we call `BTreeMap::remove()` instead of `BTreeMap::get()` to obtain an owned `Theme`
+            .expect("default theme set should include \"base16-ocean.light\"");
+
+        Self { syntaxes, theme }
+    }
+
+    /// # Errors
+    /// This function returns an error if `syntect` fails to highlight the provided text.
+    pub fn highlight(&self, text: &str, language: Option<&str>) -> Result<String> {
+        let syntax = match language {
+            Some(lang) => self.syntaxes.find_syntax_by_token(lang).ok_or_else(|| {
+                anyhow!("no syntax could be found for the provided language \"{lang}\"")
+            })?,
+            None => self.syntaxes.find_syntax_plain_text(),
+        };
+
+        highlighted_html_for_string(text, &self.syntaxes, syntax, &self.theme).map_err(Into::into)
+    }
+}
+
 #[cfg(test)]
 mod test {
-    use crate::{LatexConverter, RenderMode};
+    use crate::{LatexConverter, RenderMode, SyntaxHighlighter};
 
     #[test]
     fn latex_to_html() {
@@ -98,5 +136,37 @@ mod test {
         converter
             .latex_to_html("\\frac{", RenderMode::Inline)
             .expect("conversion should fail on invalid LaTeX");
+    }
+
+    #[test]
+    fn syntax_highlighting() {
+        let highlighter = SyntaxHighlighter::new();
+
+        assert!(
+            highlighter.highlight("abc123", None).is_ok(),
+            "plaintext highlighting should succeed"
+        );
+        assert!(
+            highlighter
+                .highlight("const FOO: usize = 42;", Some("rs"))
+                .is_ok(),
+            "extension-based syntax detection and highlighting should succeed"
+        );
+        assert!(
+            highlighter
+                .highlight("const FOO: usize = 42;", Some("rust"))
+                .is_ok(),
+            "name-based syntax detection and highlighting should succeed"
+        );
+        assert!(
+            highlighter
+                .highlight("constant foo u0 = \"abc", Some("rust"))
+                .is_ok(),
+            "highlighting should succeed for invalid syntax"
+        );
+        assert!(
+            highlighter.highlight("", Some("klingon")).is_err(),
+            "syntax detection for non-existent language should fail"
+        );
     }
 }
