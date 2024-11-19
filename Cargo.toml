@@ -1,21 +1,16 @@
-[package]
-name = "ssg"
-version = "0.0.0"
+[workspace]
+members = ["ssg"]
+resolver = "2"
+
+[workspace.package]
 authors = ["Kyle Chen"]
 edition = "2021"
-description = "Static site generator for my personal website"
-readme = "README.md"
 repository = "https://github.com/astral4/site"
 license = "MIT OR Apache-2.0"
 
-[dependencies]
-anyhow = "1.0.93"
-pulldown-cmark = { version = "0.12.2", default-features = false }
-rquickjs = { version = "0.7.0", features = ["parallel", "rust-alloc"] }
-syntect = { version = "5.2.0", default-features = false, features = ["default-syntaxes", "default-themes", "html", "regex-onig"] }
-tap = "1.0.1"
+[workspace.dependencies]
 
-[lints.rust]
+[workspace.lints.rust]
 async_fn_in_trait = "allow"
 ffi_unwind_calls = "warn"
 let_underscore_drop = "deny"
@@ -37,12 +32,12 @@ unused_lifetimes = "deny"
 unused_macro_rules = "deny"
 unused_qualifications = "deny"
 
-[lints.clippy]
+[workspace.lints.clippy]
 module_name_repetitions = { level = "allow", priority = 1 }
 new_without_default = { level = "allow", priority = 1 }
 pedantic = "warn"
 
-[profile.release]
+[workspace.profile.release]
 codegen-units = 1
 lto = true
 strip = true

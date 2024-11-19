@@ -6,7 +6,10 @@ use syntect::{
     parsing::SyntaxSet,
 };
 
-const KATEX_SRC: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/katex/katex.min.js"));
+const KATEX_SRC: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../katex/katex.min.js"
+));
 
 pub struct LatexConverter {
     context: Context,
