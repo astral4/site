@@ -126,16 +126,13 @@ mod test {
             inline_html, display_html,
             "inline LaTeX and display LaTeX should yield different outputs"
         );
-    }
 
-    #[should_panic = "conversion should fail on invalid LaTeX"]
-    #[test]
-    fn invalid_latex() {
-        let converter = LatexConverter::new().expect("engine initialization should succeed");
-
-        converter
-            .latex_to_html("\\frac{", RenderMode::Inline)
-            .expect("conversion should fail on invalid LaTeX");
+        assert!(
+            converter
+                .latex_to_html("\\frac{", RenderMode::Inline)
+                .is_err(),
+            "conversion should fail on invalid LaTeX"
+        );
     }
 
     #[test]
