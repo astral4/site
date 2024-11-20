@@ -12,9 +12,95 @@ use tokio::task::JoinSet;
 const JS_URL: &str = "https://cdn.jsdelivr.net/npm/katex/dist/katex.min.js";
 const KATEX_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../katex/");
 
+#[tokio::main]
+async fn main() -> Result<()> {
+    // Build regexes
+    let version_matcher = Regex::new(r#"version:"(.+?)""#).unwrap();
+    let top_font_matcher =
+        Regex::new(r"(src:url\(.+?\) format\(.+?\))(,url\(.+?\) format\(.+?\))+").unwrap();
+    let font_url_matcher = Regex::new(r"url\((.+?)\) format\(.+?\)").unwrap();
+
+    // Initialize HTTP client
+    let client = Client::builder()
+        .https_only(true)
+        .timeout(Duration::from_secs(15))
+        .use_rustls_tls()
+        .build()
+        .context("failed to build HTTP client")?;
+
+    // Fetch latest version of KaTeX JS source
+    let js_source = client
+        .get(JS_URL)
+        .send()
+        .await
+        .context("failed to fetch KaTeX JS")?
+        .text()
+        .await
+        .context("failed to convert KaTeX JS fetch response to text")?;
+
+    // Extract latest version number
+    let version = version_matcher
+        .captures(&js_source)
+        .unwrap()
+        .extract::<1>()
+        .1[0];
+
+    // Save KaTeX JS source and version number
+    write(Path::new(KATEX_DIR).join("katex.js"), &js_source).context("failed to save KaTeX JS")?;
+
+    write(Path::new(KATEX_DIR).join("version.txt"), version)
+        .context("failed to save KaTeX version")?;
+
+    // Construct permalink for fetching CSS and font assets
+    // We pin the version in case the latest version changes between fetching the JS source and fetching other assets
+    let dist_url: Arc<str> = Arc::from(format!(
+        "https://cdn.jsdelivr.net/npm/katex@{version}/dist/"
+    ));
+
+    // Fetch KaTeX CSS source
+    let css_source = client
+        .get(format!("{dist_url}katex.min.css"))
+        .send()
+        .await
+        .context("failed to fetch KaTeX CSS")?
+        .text()
+        .await
+        .context("failed to convert KaTeX CSS fetch response to text")?;
+
+    // Only use the "first-choice" format for every font
+    // This is for the purpose of only supporting WOFF2; WOFF and TTF don't need to be served
+    let css_source = top_font_matcher.replace_all(&css_source, "$1");
+
+    // Save KaTeX CSS source
+    write(Path::new(KATEX_DIR).join("katex.css"), &*css_source)
+        .context("failed to save KaTeX CSS")?;
+
+    let mut tasks = JoinSet::new();
+
+    // Get font URLs and concurrently fetch fonts
+    for capture in font_url_matcher.captures_iter(&css_source) {
+        let font_path = capture.extract::<1>().1[0];
+        tasks.spawn(download_font(
+            client.clone(),
+            dist_url.clone(),
+            font_path.to_owned(),
+        ));
+    }
+
+    // Wait for all concurrent tasks to finish
+    while let Some(result) = tasks.join_next().await {
+        result
+            .expect("task should not panic or abort")
+            .context("failed to download KaTeX font")?;
+    }
+
+    Ok(())
+}
+
 async fn download_font(client: Client, base_url: Arc<str>, font_path: String) -> Result<()> {
     let font_url = format!("{base_url}{font_path}");
 
+    // Fetch KaTeX font
     let font = client
         .get(&font_url)
         .send()
@@ -26,6 +112,7 @@ async fn download_font(client: Client, base_url: Arc<str>, font_path: String) ->
             format!("failed to convert KaTeX font fetch response to binary ({font_url})")
         })?;
 
+    // Save KaTeX font
     let target_path = Path::new(KATEX_DIR).join(&font_path);
 
     if let Some(parent) = target_path.parent() {
@@ -33,80 +120,6 @@ async fn download_font(client: Client, base_url: Arc<str>, font_path: String) ->
     }
 
     write(target_path, font).with_context(|| format!("failed to save KaTeX font ({font_path})"))?;
-
-    Ok(())
-}
-
-#[tokio::main]
-async fn main() -> Result<()> {
-    let version_matcher = Regex::new(r#"version:"(.+?)""#).unwrap();
-
-    let top_font_matcher =
-        Regex::new(r"(src:url\(.+?\) format\(.+?\))(,url\(.+?\) format\(.+?\))+").unwrap();
-
-    let font_url_matcher = Regex::new(r"url\((.+?)\) format\(.+?\)").unwrap();
-
-    let client = Client::builder()
-        .https_only(true)
-        .timeout(Duration::from_secs(15))
-        .use_rustls_tls()
-        .build()
-        .context("failed to build HTTP client")?;
-
-    let js_source = client
-        .get(JS_URL)
-        .send()
-        .await
-        .context("failed to fetch KaTeX JS")?
-        .text()
-        .await
-        .context("failed to convert KaTeX JS fetch response to text")?;
-
-    let version = version_matcher
-        .captures(&js_source)
-        .unwrap()
-        .extract::<1>()
-        .1[0];
-
-    write(Path::new(KATEX_DIR).join("katex.js"), &js_source).context("failed to save KaTeX JS")?;
-
-    write(Path::new(KATEX_DIR).join("version.txt"), version)
-        .context("failed to save KaTeX version")?;
-
-    let dist_url: Arc<str> = Arc::from(format!(
-        "https://cdn.jsdelivr.net/npm/katex@{version}/dist/"
-    ));
-
-    let css_source = client
-        .get(format!("{dist_url}katex.min.css"))
-        .send()
-        .await
-        .context("failed to fetch KaTeX CSS")?
-        .text()
-        .await
-        .context("failed to convert KaTeX CSS fetch response to text")?;
-
-    let css_source = top_font_matcher.replace_all(&css_source, "$1");
-
-    write(Path::new(KATEX_DIR).join("katex.css"), &*css_source)
-        .context("failed to save KaTeX CSS")?;
-
-    let mut tasks = JoinSet::new();
-
-    for capture in font_url_matcher.captures_iter(&css_source) {
-        let font_path = capture.extract::<1>().1[0];
-        tasks.spawn(download_font(
-            client.clone(),
-            dist_url.clone(),
-            font_path.to_owned(),
-        ));
-    }
-
-    while let Some(result) = tasks.join_next().await {
-        result
-            .expect("task should not panic or abort")
-            .context("failed to download KaTeX font")?;
-    }
 
     Ok(())
 }
