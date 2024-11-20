@@ -21,10 +21,10 @@ async fn main() -> Result<()> {
         .get(JS_URL)
         .send()
         .await
-        .context("failed to fetch KaTeX JS source")?
+        .context("failed to fetch KaTeX JS")?
         .text()
         .await
-        .context("failed to convert JS fetch response to text")?;
+        .context("failed to convert KaTeX JS fetch response to text")?;
 
     let version = version_matcher
         .captures(&js_source)
@@ -32,11 +32,21 @@ async fn main() -> Result<()> {
         .extract::<1>()
         .1[0];
 
-    write(Path::new(KATEX_DIR).join("katex.js"), &js_source)
-        .context("failed to save KaTeX JS source")?;
+    write(Path::new(KATEX_DIR).join("katex.js"), &js_source).context("failed to save KaTeX JS")?;
 
     write(Path::new(KATEX_DIR).join("version.txt"), version)
-        .context("failed to save KaTeX version information")?;
+        .context("failed to save KaTeX version")?;
+
+    let dist_url = format!("https://cdn.jsdelivr.net/npm/katex@{version}/dist/");
+
+    let css_source = client
+        .get(format!("{dist_url}katex.min.css"))
+        .send()
+        .await
+        .context("failed to fetch KaTeX CSS")?
+        .text()
+        .await
+        .context("failed to convert KaTeX CSS fetch response to text")?;
 
     Ok(())
 }
