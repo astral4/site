@@ -8,9 +8,16 @@ use std::{
 };
 
 fn main() -> Result<()> {
-    let content_path: PathBuf = args()
+    let mut input_args = args();
+
+    let content_dir: PathBuf = input_args
         .next()
-        .ok_or_else(|| anyhow!("path to articles was not provided"))?
+        .ok_or_else(|| anyhow!("articles directory path was not provided"))?
+        .into();
+
+    let output_dir: PathBuf = input_args
+        .next()
+        .ok_or_else(|| anyhow!("output directory path was not provided"))?
         .into();
 
     let markdown_parser_options = Options::ENABLE_STRIKETHROUGH
@@ -22,9 +29,7 @@ fn main() -> Result<()> {
     let latex_converter =
         LatexConverter::new().context("failed to initialize LaTeX-to-HTML conversion engine")?;
 
-    for article_dir in
-        read_dir(content_path).context("failed to start traversal of all articles")?
-    {
+    for article_dir in read_dir(content_dir).context("failed to start traversal of all articles")? {
         let article_dir_path = article_dir
             .context("failed to access article directory")?
             .path();
