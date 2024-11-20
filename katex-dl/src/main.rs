@@ -8,14 +8,17 @@ const KATEX_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../katex/");
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    let version_matcher = Regex::new(r#"version:"(.+?)""#).unwrap();
+
+    let top_font_matcher =
+        Regex::new(r"(src:url\(.+?\) format\(.+?\))(,url\(.+?\) format\(.+?\))+").unwrap();
+
     let client = Client::builder()
         .https_only(true)
         .timeout(Duration::from_secs(15))
         .use_rustls_tls()
         .build()
         .context("failed to build HTTP client")?;
-
-    let version_matcher = Regex::new(r#"version:"([0-9]+?\.[0-9]+?\.[0-9]+?)""#).unwrap();
 
     let js_source = client
         .get(JS_URL)
@@ -47,6 +50,8 @@ async fn main() -> Result<()> {
         .text()
         .await
         .context("failed to convert KaTeX CSS fetch response to text")?;
+
+    let css_source = top_font_matcher.replace_all(&css_source, "$1");
 
     Ok(())
 }
