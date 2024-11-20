@@ -1,24 +1,13 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use pulldown_cmark::{CodeBlockKind, Event, Options, Parser, Tag, TagEnd, TextMergeStream};
-use ssg::{LatexConverter, RenderMode, SyntaxHighlighter};
-use std::{
-    env::args,
-    fs::{read_dir, read_to_string},
-    path::PathBuf,
-};
+use ssg::{read_input, Input, LatexConverter, RenderMode, SyntaxHighlighter};
+use std::fs::{read_dir, read_to_string};
 
 fn main() -> Result<()> {
-    let mut input_args = args();
-
-    let content_dir: PathBuf = input_args
-        .next()
-        .ok_or_else(|| anyhow!("articles directory path was not provided"))?
-        .into();
-
-    let output_dir: PathBuf = input_args
-        .next()
-        .ok_or_else(|| anyhow!("output directory path was not provided"))?
-        .into();
+    let Input {
+        content_dir,
+        output_dir,
+    } = read_input()?;
 
     let markdown_parser_options = Options::ENABLE_STRIKETHROUGH
         | Options::ENABLE_YAML_STYLE_METADATA_BLOCKS

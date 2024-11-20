@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Context as _, Error, Result};
 use rquickjs::{Context, Exception, Function, Object, Runtime};
+use std::{env::args, path::PathBuf};
 use syntect::{
     highlighting::{Theme, ThemeSet},
     html::highlighted_html_for_string,
@@ -7,6 +8,52 @@ use syntect::{
 };
 
 const KATEX_SRC: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../katex/katex.js"));
+
+pub struct Input {
+    pub content_dir: PathBuf,
+    pub output_dir: PathBuf,
+}
+
+/// Reads the articles directory and output directory from command-line arguments.
+/// # Errors
+/// This function returns an error if:
+/// - not enough arguments were provided
+/// - too many arguments were provided
+/// - an argument parsed as a directory path does not point to a directory
+pub fn read_input() -> Result<Input> {
+    let mut args = args();
+
+    let content_dir: PathBuf = args
+        .next()
+        .ok_or_else(|| anyhow!("articles directory path was not provided"))?
+        .into();
+
+    if !content_dir.is_dir() {
+        return Err(anyhow!(
+            "articles directory path does not point to a directory"
+        ));
+    }
+
+    let output_dir: PathBuf = args
+        .next()
+        .ok_or_else(|| anyhow!("output directory path was not provided"))?
+        .into();
+
+    if !output_dir.is_dir() {
+        return Err(anyhow!(
+            "output directory path does not point to a directory"
+        ));
+    }
+
+    if args.next().is_some() {
+        return Err(anyhow!("too many input arguments were supplied"));
+    }
+
+    Ok(Input {
+        content_dir,
+        output_dir,
+    })
+}
 
 pub struct LatexConverter {
     context: Context,
