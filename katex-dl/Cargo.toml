@@ -16,6 +16,3 @@ tokio = { version = "1.41.1", features = ["macros", "rt-multi-thread"] }
 
 [lints]
 workspace = true
-
-[profile.release]
-workspace = true

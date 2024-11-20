@@ -38,7 +38,7 @@ module_name_repetitions = { level = "allow", priority = 1 }
 new_without_default = { level = "allow", priority = 1 }
 pedantic = "warn"
 
-[workspace.profile.release]
+[profile.release]
 codegen-units = 1
 lto = true
 strip = true

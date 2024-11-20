@@ -16,6 +16,3 @@ syntect = { version = "5.2.0", default-features = false, features = ["default-sy
 
 [lints]
 workspace = true
-
-[profile.release]
-workspace = true
