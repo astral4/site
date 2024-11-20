@@ -35,47 +35,43 @@ fn main() -> Result<()> {
         let mut is_in_code_block = false;
         let mut code_language = None;
 
-        let article_parser = TextMergeStream::new(Parser::new_with_broken_link_callback(
-            &article_text,
-            markdown_parser_options,
-            Some(|_| None), // TODO: resolve "broken" links such as inter-article links
-        ))
-        .map(|event| match event {
-            Event::Start(Tag::CodeBlock(ref kind)) => {
-                is_in_code_block = true;
-                code_language = match kind {
-                    CodeBlockKind::Indented => None,
-                    CodeBlockKind::Fenced(lang) => (!lang.is_empty()).then(|| lang.clone()),
-                };
-                Ok(event)
-            }
-            Event::End(TagEnd::CodeBlock) => {
-                is_in_code_block = false;
-                Ok(event)
-            }
-            Event::Text(ref text) => {
-                if is_in_code_block {
-                    syntax_highlighter
-                        .highlight(text, code_language.as_deref())
-                        .map_err(|e| e.context("failed to highlight text block"))
-                        .map(Into::into)
-                        .map(Event::InlineHtml)
-                } else {
+        let parser = TextMergeStream::new(Parser::new_ext(&article_text, markdown_parser_options))
+            .map(|event| match event {
+                Event::Start(Tag::CodeBlock(ref kind)) => {
+                    is_in_code_block = true;
+                    code_language = match kind {
+                        CodeBlockKind::Indented => None,
+                        CodeBlockKind::Fenced(lang) => (!lang.is_empty()).then(|| lang.clone()),
+                    };
                     Ok(event)
                 }
-            }
-            Event::InlineMath(src) => latex_converter
-                .latex_to_html(&src, RenderMode::Inline)
-                .map_err(|e| e.context("failed to convert LaTeX to HTML"))
-                .map(Into::into)
-                .map(Event::InlineHtml),
-            Event::DisplayMath(src) => latex_converter
-                .latex_to_html(&src, RenderMode::Display)
-                .map_err(|e| e.context("failed to convert LaTeX to HTML"))
-                .map(Into::into)
-                .map(Event::InlineHtml),
-            _ => Ok(event),
-        });
+                Event::End(TagEnd::CodeBlock) => {
+                    is_in_code_block = false;
+                    Ok(event)
+                }
+                Event::Text(ref text) => {
+                    if is_in_code_block {
+                        syntax_highlighter
+                            .highlight(text, code_language.as_deref())
+                            .map_err(|e| e.context("failed to highlight text block"))
+                            .map(Into::into)
+                            .map(Event::InlineHtml)
+                    } else {
+                        Ok(event)
+                    }
+                }
+                Event::InlineMath(src) => latex_converter
+                    .latex_to_html(&src, RenderMode::Inline)
+                    .map_err(|e| e.context("failed to convert LaTeX to HTML"))
+                    .map(Into::into)
+                    .map(Event::InlineHtml),
+                Event::DisplayMath(src) => latex_converter
+                    .latex_to_html(&src, RenderMode::Display)
+                    .map_err(|e| e.context("failed to convert LaTeX to HTML"))
+                    .map(Into::into)
+                    .map(Event::InlineHtml),
+                _ => Ok(event),
+            });
     }
 
     Ok(())
