@@ -115,9 +115,8 @@ async fn download_font(client: Client, base_url: Arc<str>, font_path: String) ->
     // Save KaTeX font
     let target_path = Path::new(KATEX_DIR).join(&font_path);
 
-    if let Some(parent) = target_path.parent() {
-        create_dir_all(parent).context("failed to create KaTeX font directory")?;
-    }
+    create_dir_all(target_path.parent().unwrap())
+        .context("failed to create KaTeX font directory")?;
 
     write(target_path, font).with_context(|| format!("failed to save KaTeX font ({font_path})"))?;
 
