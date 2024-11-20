@@ -1,9 +1,10 @@
 use anyhow::{Context, Result};
 use regex::Regex;
 use reqwest::Client;
-use std::time::Duration;
+use std::{fs::write, path::Path, time::Duration};
 
 const JS_URL: &str = "https://cdn.jsdelivr.net/npm/katex/dist/katex.min.js";
+const KATEX_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../katex/");
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -30,6 +31,12 @@ async fn main() -> Result<()> {
         .unwrap()
         .extract::<1>()
         .1[0];
+
+    write(Path::new(KATEX_DIR).join("katex.js"), &js_source)
+        .context("failed to save KaTeX JS source")?;
+
+    write(Path::new(KATEX_DIR).join("version.txt"), version)
+        .context("failed to save KaTeX version information")?;
 
     Ok(())
 }
