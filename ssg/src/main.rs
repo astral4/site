@@ -1,4 +1,5 @@
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
+use foldhash::{HashSet, HashSetExt};
 use pulldown_cmark::{CodeBlockKind, Event, Options, Parser, Tag, TagEnd, TextMergeStream};
 use ssg::{read_input, Frontmatter, Input, LatexConverter, RenderMode, SyntaxHighlighter};
 use std::fs::{read_dir, read_to_string};
@@ -12,6 +13,8 @@ fn main() -> Result<()> {
     let markdown_parser_options = Options::ENABLE_STRIKETHROUGH
         | Options::ENABLE_YAML_STYLE_METADATA_BLOCKS
         | Options::ENABLE_MATH;
+
+    let mut slug_tracker = HashSet::new();
 
     let syntax_highlighter = SyntaxHighlighter::new();
 
@@ -28,6 +31,13 @@ fn main() -> Result<()> {
 
         let article_frontmatter =
             Frontmatter::from_text(&article_text).context("failed to read article frontmatter")?;
+
+        if !slug_tracker.insert(article_frontmatter.slug.clone()) {
+            return Err(anyhow!(
+                "duplicate article slugs found: {}",
+                article_frontmatter.slug
+            ));
+        }
 
         let mut is_in_code_block = false;
         let mut code_language = None;

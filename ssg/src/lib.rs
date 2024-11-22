@@ -64,12 +64,12 @@ pub fn read_input() -> Result<Input> {
 #[cfg_attr(test, derive(Debug, PartialEq))]
 #[derive(Deserialize)]
 pub struct Frontmatter {
-    title: String,
-    slug: String,
+    pub title: String,
+    pub slug: String,
     #[serde(deserialize_with = "deserialize_date")]
-    created: Date,
+    pub created: Date,
     #[serde(default, deserialize_with = "deserialize_optional_date")]
-    updated: Option<Date>,
+    pub updated: Option<Date>,
 }
 
 impl Frontmatter {
