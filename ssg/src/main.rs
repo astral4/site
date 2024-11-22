@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use pulldown_cmark::{CodeBlockKind, Event, Options, Parser, Tag, TagEnd, TextMergeStream};
-use ssg::{read_input, Input, LatexConverter, RenderMode, SyntaxHighlighter};
+use ssg::{read_input, Frontmatter, Input, LatexConverter, RenderMode, SyntaxHighlighter};
 use std::fs::{read_dir, read_to_string};
 
 fn main() -> Result<()> {
@@ -25,6 +25,9 @@ fn main() -> Result<()> {
 
         let article_text = read_to_string(article_dir_path.join("index.md"))
             .context("failed to read article text file")?;
+
+        let article_frontmatter =
+            Frontmatter::from_text(&article_text).context("failed to read article frontmatter")?;
 
         let mut is_in_code_block = false;
         let mut code_language = None;
