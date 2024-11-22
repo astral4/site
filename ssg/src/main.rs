@@ -60,23 +60,20 @@ fn main() -> Result<()> {
                     if is_in_code_block {
                         syntax_highlighter
                             .highlight(text, code_language.as_deref())
-                            .map_err(|e| e.context("failed to highlight text block"))
-                            .map(Into::into)
-                            .map(Event::InlineHtml)
+                            .context("failed to highlight text block")
+                            .map(|text| Event::InlineHtml(text.into()))
                     } else {
                         Ok(event)
                     }
                 }
                 Event::InlineMath(src) => latex_converter
                     .latex_to_html(&src, RenderMode::Inline)
-                    .map_err(|e| e.context("failed to convert LaTeX to HTML"))
-                    .map(Into::into)
-                    .map(Event::InlineHtml),
+                    .context("failed to convert LaTeX to HTML")
+                    .map(|text| Event::InlineHtml(text.into())),
                 Event::DisplayMath(src) => latex_converter
                     .latex_to_html(&src, RenderMode::Display)
-                    .map_err(|e| e.context("failed to convert LaTeX to HTML"))
-                    .map(Into::into)
-                    .map(Event::InlineHtml),
+                    .context("failed to convert LaTeX to HTML")
+                    .map(|text| Event::InlineHtml(text.into())),
                 _ => Ok(event),
             });
     }
