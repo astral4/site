@@ -342,9 +342,13 @@ pub fn process_image(
     if image_path.is_empty() {
         return Err(anyhow!("no source provided for image"));
     }
-    if !Path::new(image_path).is_relative() {
+    if !Path::new(image_path).is_relative()
+        || Path::new(image_path)
+            .components()
+            .any(|part| part.as_os_str() == "..")
+    {
         return Err(anyhow!(
-            "image source is not a relative file path ({image_path})"
+            "image source is not a normalized relative file path ({image_path})"
         ));
     }
 
