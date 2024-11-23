@@ -1,18 +1,19 @@
 use anyhow::{anyhow, Context, Result};
 use foldhash::{HashSet, HashSetExt};
 use pulldown_cmark::{CodeBlockKind, Event, Options, Parser, Tag, TagEnd, TextMergeStream};
-use ssg::{
-    process_image, read_input, Frontmatter, Input, LatexConverter, RenderMode, SyntaxHighlighter,
-};
+use ssg::{process_image, Frontmatter, Input, LatexConverter, RenderMode, SyntaxHighlighter};
 use std::fs::{create_dir_all, read_dir, read_to_string};
 
 const OUTPUT_CONTENT_DIR: &str = "writing/";
 
 fn main() -> Result<()> {
     let Input {
-        input_dir,
+        articles_dir,
+        base_pages_dir,
+        page_template_path,
+        site_css_path,
         output_dir,
-    } = read_input()?;
+    } = Input::from_env()?;
 
     let markdown_parser_options = Options::ENABLE_STRIKETHROUGH
         | Options::ENABLE_YAML_STYLE_METADATA_BLOCKS
@@ -25,12 +26,10 @@ fn main() -> Result<()> {
     let latex_converter =
         LatexConverter::new().context("failed to initialize LaTeX-to-HTML conversion engine")?;
 
-    for article_dir in read_dir(input_dir).context("failed to start traversal of all articles")? {
-        let article_dir_path = article_dir
-            .context("failed to access article directory")?
-            .path();
+    for dir in read_dir(articles_dir).context("failed to start traversal of all articles")? {
+        let input_article_dir = dir.context("failed to access article directory")?.path();
 
-        let article_text = read_to_string(article_dir_path.join("index.md"))
+        let article_text = read_to_string(input_article_dir.join("index.md"))
             .context("failed to read article text file")?;
 
         let article_frontmatter =
@@ -76,7 +75,7 @@ fn main() -> Result<()> {
                     id,
                     ..
                 }) => process_image(
-                    &article_dir_path,
+                    &input_article_dir,
                     &output_article_dir,
                     &dest_url,
                     &title,

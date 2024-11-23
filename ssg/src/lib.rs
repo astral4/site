@@ -22,45 +22,71 @@ use syntect::{
 const KATEX_SRC: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../katex/katex.js"));
 
 pub struct Input {
-    pub input_dir: PathBuf,
+    pub articles_dir: PathBuf,
+    pub base_pages_dir: PathBuf,
+    pub page_template_path: PathBuf,
+    pub site_css_path: PathBuf,
     pub output_dir: PathBuf,
 }
 
-/// Reads the articles directory and output directory from command-line arguments.
-/// # Errors
-/// This function returns an error if:
-/// - not enough arguments were provided
-/// - too many arguments were provided
-/// - an argument parsed as a directory path does not point to a directory
-pub fn read_input() -> Result<Input> {
-    let mut args = args();
+macro_rules! read_path_arg {
+    ($args:ident, $var:ident, $desc:literal, "dir") => {
+        let $var: PathBuf = $args
+            .next()
+            .ok_or_else(|| ::anyhow::Error::msg(::std::concat!($desc, " path was not provided")))?
+            .into();
 
-    let input_dir: PathBuf = args
-        .next()
-        .ok_or_else(|| anyhow!("input path was not provided"))?
-        .into();
+        if !$var.is_dir() {
+            return ::std::result::Result::Err(::anyhow::Error::msg(::std::concat!(
+                $desc,
+                " path does not point to a directory"
+            )));
+        }
+    };
+    ($args:ident, $var:ident, $desc:literal, "file") => {
+        let $var: PathBuf = $args
+            .next()
+            .ok_or_else(|| ::anyhow::Error::msg(::std::concat!($desc, " path was not provided")))?
+            .into();
 
-    if !input_dir.is_dir() {
-        return Err(anyhow!("input path does not point to a directory"));
+        if !$var.is_file() {
+            return ::std::result::Result::Err(::anyhow::Error::msg(::std::concat!(
+                $desc,
+                " path does not point to a file"
+            )));
+        }
+    };
+}
+
+impl Input {
+    /// Reads the articles directory and output directory from command-line arguments.
+    /// # Errors
+    /// This function returns an error if:
+    /// - not enough arguments are provided
+    /// - too many arguments are provided
+    /// - an argument interpreted as a directory path does not point to a directory
+    /// - an argument interpreted as a file path does not point to a file
+    pub fn from_env() -> Result<Self> {
+        let mut args = args();
+
+        read_path_arg!(args, articles_dir, "articles directory", "dir");
+        read_path_arg!(args, base_pages_dir, "base webpages directory", "dir");
+        read_path_arg!(args, page_template_path, "webpage template file", "file");
+        read_path_arg!(args, site_css_path, "site CSS file", "file");
+        read_path_arg!(args, output_dir, "output directory", "dir");
+
+        if args.next().is_some() {
+            return Err(anyhow!("too many input arguments were supplied"));
+        }
+
+        Ok(Input {
+            articles_dir,
+            base_pages_dir,
+            page_template_path,
+            site_css_path,
+            output_dir,
+        })
     }
-
-    let output_dir: PathBuf = args
-        .next()
-        .ok_or_else(|| anyhow!("output path was not provided"))?
-        .into();
-
-    if !output_dir.is_dir() {
-        return Err(anyhow!("output path does not point to a directory"));
-    }
-
-    if args.next().is_some() {
-        return Err(anyhow!("too many input arguments were supplied"));
-    }
-
-    Ok(Input {
-        input_dir,
-        output_dir,
-    })
 }
 
 #[cfg_attr(test, derive(Debug, PartialEq))]
@@ -138,6 +164,9 @@ impl LatexConverter {
     /// This function returns an error for:
     /// - failed initialization of the underlying JavaScript runtime from `rquickjs`
     /// - failed evaluation of the embedded `katex` source code
+    ///
+    /// - initializating the underlying `rquickjs` JavaScript runtime fails
+    /// - evaluating the embedded `katex` source code fails
     pub fn new() -> Result<Self> {
         let runtime = Runtime::new().context("failed to initialize JS runtime")?;
         let context = Context::full(&runtime).context("failed to initialize JS runtime context")?;
