@@ -329,7 +329,7 @@ impl SyntaxHighlighter {
 /// # Errors
 /// This function returns an error if:
 /// - the input image path is empty
-/// - the input image path is not relative
+/// - the input image path is not normalized or relative
 /// - the file at the input image path cannot be opened or read from
 /// - the file at the output file path cannot be created or written to
 pub fn process_image(
