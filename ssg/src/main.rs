@@ -25,8 +25,12 @@ fn main() -> Result<()> {
     let latex_converter =
         LatexConverter::new().context("failed to initialize LaTeX-to-HTML conversion engine")?;
 
-    for dir in read_dir(articles_dir).context("failed to start traversal of all articles")? {
-        let input_article_dir = dir.context("failed to access article directory")?.path();
+    for entry in read_dir(articles_dir).context("failed to start traversal of all articles")? {
+        let input_article_dir = entry.context("failed to access article directory")?.path();
+
+        if !input_article_dir.is_dir() {
+            continue;
+        }
 
         let article_text = read_to_string(input_article_dir.join("index.md"))
             .context("failed to read article text file")?;
