@@ -76,6 +76,10 @@ fn main() -> Result<()> {
                     .map(|text| Event::InlineHtml(text.into())),
                 _ => Ok(event),
             });
+
+        if is_in_code_block {
+            return Err(anyhow!("found unclosed code block in article"));
+        }
     }
 
     Ok(())
