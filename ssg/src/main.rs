@@ -28,73 +28,78 @@ fn main() -> Result<()> {
             continue;
         }
 
-        let article_text = read_to_string(input_article_dir.join("index.md"))
-            .context("failed to read article text file")?;
+        (|| {
+            let article_text = read_to_string(input_article_dir.join("index.md"))
+                .context("failed to read article text file")?;
 
-        let article_frontmatter =
-            Frontmatter::from_text(&article_text).context("failed to read article frontmatter")?;
+            let article_frontmatter = Frontmatter::from_text(&article_text)
+                .context("failed to read article frontmatter")?;
 
-        if !slug_tracker.insert(article_frontmatter.slug.clone()) {
-            return Err(anyhow!(
-                "duplicate article slugs found: {}",
-                article_frontmatter.slug
-            ));
-        }
+            if !slug_tracker.insert(article_frontmatter.slug.clone()) {
+                return Err(anyhow!(
+                    "duplicate article slug found: {}",
+                    article_frontmatter.slug
+                ));
+            }
 
-        let output_article_dir = config
-            .output_dir
-            .join(OUTPUT_CONTENT_DIR)
-            .join(&article_frontmatter.slug);
+            let output_article_dir = config
+                .output_dir
+                .join(OUTPUT_CONTENT_DIR)
+                .join(&article_frontmatter.slug);
 
-        create_dir_all(&output_article_dir).context("failed to create output article directory")?;
+            create_dir_all(&output_article_dir)
+                .context("failed to create output article directory")?;
 
-        let mut is_in_code_block = false;
-        let mut code_language = None;
+            let mut is_in_code_block = false;
+            let mut code_language = None;
 
-        let events = parse_markdown(&article_text)
-            .map(|event| match event {
-                Event::Start(Tag::CodeBlock(ref kind)) => {
-                    is_in_code_block = true;
-                    code_language = match kind {
-                        CodeBlockKind::Indented => None,
-                        CodeBlockKind::Fenced(lang) => (!lang.is_empty()).then(|| lang.clone()),
-                    };
-                    Ok(event)
-                }
-                Event::End(TagEnd::CodeBlock) => {
-                    is_in_code_block = false;
-                    Ok(event)
-                }
-                Event::Text(text) if is_in_code_block => syntax_highlighter
-                    .highlight(&text, code_language.as_deref())
-                    .context("failed to highlight text block")
+            let events = parse_markdown(&article_text)
+                .map(|event| match event {
+                    Event::Start(Tag::CodeBlock(ref kind)) => {
+                        is_in_code_block = true;
+                        code_language = match kind {
+                            CodeBlockKind::Indented => None,
+                            CodeBlockKind::Fenced(lang) => (!lang.is_empty()).then(|| lang.clone()),
+                        };
+                        Ok(event)
+                    }
+                    Event::End(TagEnd::CodeBlock) => {
+                        is_in_code_block = false;
+                        Ok(event)
+                    }
+                    Event::Text(text) if is_in_code_block => syntax_highlighter
+                        .highlight(&text, code_language.as_deref())
+                        .context("failed to highlight text block")
+                        .map(|html| Event::InlineHtml(html.into())),
+                    Event::Start(Tag::Image {
+                        dest_url,
+                        title,
+                        id,
+                        ..
+                    }) => process_image(
+                        &input_article_dir,
+                        &output_article_dir,
+                        &dest_url,
+                        &title,
+                        (!id.is_empty()).then_some(&id),
+                    )
+                    .context("failed to process image")
                     .map(|html| Event::InlineHtml(html.into())),
-                Event::Start(Tag::Image {
-                    dest_url,
-                    title,
-                    id,
-                    ..
-                }) => process_image(
-                    &input_article_dir,
-                    &output_article_dir,
-                    &dest_url,
-                    &title,
-                    (!id.is_empty()).then_some(&id),
-                )
-                .context("failed to process image")
-                .map(|html| Event::InlineHtml(html.into())),
-                Event::InlineMath(src) => latex_converter
-                    .latex_to_html(&src, RenderMode::Inline)
-                    .context("failed to convert LaTeX to HTML")
-                    .map(|html| Event::InlineHtml(html.into())),
-                Event::DisplayMath(src) => latex_converter
-                    .latex_to_html(&src, RenderMode::Display)
-                    .context("failed to convert LaTeX to HTML")
-                    .map(|html| Event::InlineHtml(html.into())),
-                _ => Ok(event),
-            })
-            .collect::<Result<Vec<_>>>()
-            .with_context(|| format!("failed to process article at {input_article_dir:?}"))?;
+                    Event::InlineMath(src) => latex_converter
+                        .latex_to_html(&src, RenderMode::Inline)
+                        .context("failed to convert LaTeX to HTML")
+                        .map(|html| Event::InlineHtml(html.into())),
+                    Event::DisplayMath(src) => latex_converter
+                        .latex_to_html(&src, RenderMode::Display)
+                        .context("failed to convert LaTeX to HTML")
+                        .map(|html| Event::InlineHtml(html.into())),
+                    _ => Ok(event),
+                })
+                .collect::<Result<Vec<_>>>()?;
+
+            Ok(())
+        })()
+        .with_context(|| format!("failed to process article from {input_article_dir:?}"))?;
     }
 
     Ok(())
