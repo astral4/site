@@ -31,10 +31,10 @@ pub struct Config {
     // path to directory of all webpage body files;
     // meant for non-article pages like the site index and the "about" page
     pub body_dir: Box<Path>,
-    // path to template HTML file for all webpages
+    // path to site-wide template HTML file
     pub template_file: Box<Path>,
-    // entries in this directory will be copied to the output directory without any processing
-    pub public_dir: Box<Path>,
+    // path to site-wide CSS file
+    pub site_css_file: Box<Path>,
     // path to directory for generated site output
     pub output_dir: Box<Path>,
 }
@@ -89,10 +89,10 @@ impl Config {
                 "`template_file`: {:?} does not point to a file",
                 self.template_file
             ))
-        } else if !self.public_dir.is_dir() {
+        } else if !self.site_css_file.is_file() {
             Err(anyhow!(
-                "`public_dir`: {:?} does not point to a directory",
-                self.public_dir
+                "`site_css_file`: {:?} does not point to a file",
+                self.site_css_file
             ))
         } else {
             let output_dir = get_handle(&self.output_dir)?;
@@ -103,10 +103,6 @@ impl Config {
             } else if output_dir == get_handle(&self.body_dir)? {
                 Err(anyhow!(
                     "`output_dir` and `body_dir` point to the same location"
-                ))
-            } else if output_dir == get_handle(&self.public_dir)? {
-                Err(anyhow!(
-                    "`output_dir` and `public_dir` point to the same location"
                 ))
             } else {
                 Ok(())
