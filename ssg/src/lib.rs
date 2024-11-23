@@ -2,6 +2,7 @@ use anyhow::{anyhow, Context as _, Error, Result};
 use gray_matter::{engine::YAML, Matter};
 use image::{codecs::avif::AvifEncoder, GenericImageView, ImageEncoder, ImageReader};
 use jiff::civil::Date;
+use pulldown_cmark::{Event, Options, Parser, TextMergeStream};
 use rquickjs::{Context, Exception, Function, Object, Runtime};
 use serde::{
     de::{Error as DeError, Unexpected},
@@ -155,6 +156,17 @@ where
         })?)),
         None => Ok(None),
     }
+}
+
+/// Parses the input string as Markdown, returning an iterator of Markdown parsing events.
+/// The parser recognizes strikethroughs, YAML-style frontmatter, and math markup.
+pub fn parse_markdown(text: &str) -> impl Iterator<Item = Event<'_>> {
+    TextMergeStream::new(Parser::new_ext(
+        text,
+        Options::ENABLE_STRIKETHROUGH
+            | Options::ENABLE_YAML_STYLE_METADATA_BLOCKS
+            | Options::ENABLE_MATH,
+    ))
 }
 
 pub struct LatexConverter {
