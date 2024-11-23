@@ -84,13 +84,9 @@ impl Frontmatter {
         let matter: Frontmatter = Matter::<YAML>::new()
             .parse(input)
             .data
-            .ok_or(anyhow!("article frontmatter not found"))?
+            .ok_or_else(|| anyhow!("article frontmatter not found"))?
             .deserialize()
             .context("failed to parse article frontmatter")?;
-
-        if let Some(date) = matter.updated {
-            println!("{input}: {}", matter.created - date);
-        }
 
         if matter.updated.is_some_and(|date| date < matter.created) {
             Err(anyhow!(
@@ -269,10 +265,9 @@ pub fn process_image(
             .with_context(|| format!("failed to write image to {output_path:?}"))?;
     }
 
-    let html = if let Some(id) = id {
-        format!("<img src=\"{image_path}\" alt=\"{alt_text}\" width=\"{width}\" height=\"{height}\" decoding=\"async\" loading=\"lazy\" id=\"{id}\">")
-    } else {
-        format!("<img src=\"{image_path}\" alt=\"{alt_text}\" width=\"{width}\" height=\"{height}\" decoding=\"async\" loading=\"lazy\">")
+    let html = match id {
+        Some(id) => format!("<img src=\"{image_path}\" alt=\"{alt_text}\" width=\"{width}\" height=\"{height}\" decoding=\"async\" loading=\"lazy\" id=\"{id}\">"),
+        None => format!("<img src=\"{image_path}\" alt=\"{alt_text}\" width=\"{width}\" height=\"{height}\" decoding=\"async\" loading=\"lazy\">")
     };
 
     Ok(html)

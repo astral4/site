@@ -52,7 +52,7 @@ fn main() -> Result<()> {
         let mut is_in_code_block = false;
         let mut code_language = None;
 
-        let parser = TextMergeStream::new(Parser::new_ext(&article_text, markdown_parser_options))
+        let events = TextMergeStream::new(Parser::new_ext(&article_text, markdown_parser_options))
             .map(|event| match event {
                 Event::Start(Tag::CodeBlock(ref kind)) => {
                     is_in_code_block = true;
@@ -66,16 +66,10 @@ fn main() -> Result<()> {
                     is_in_code_block = false;
                     Ok(event)
                 }
-                Event::Text(ref text) => {
-                    if is_in_code_block {
-                        syntax_highlighter
-                            .highlight(text, code_language.as_deref())
-                            .context("failed to highlight text block")
-                            .map(|text| Event::InlineHtml(text.into()))
-                    } else {
-                        Ok(event)
-                    }
-                }
+                Event::Text(text) if is_in_code_block => syntax_highlighter
+                    .highlight(&text, code_language.as_deref())
+                    .context("failed to highlight text block")
+                    .map(|html| Event::InlineHtml(html.into())),
                 Event::Start(Tag::Image {
                     dest_url,
                     title,
@@ -93,11 +87,11 @@ fn main() -> Result<()> {
                 Event::InlineMath(src) => latex_converter
                     .latex_to_html(&src, RenderMode::Inline)
                     .context("failed to convert LaTeX to HTML")
-                    .map(|text| Event::InlineHtml(text.into())),
+                    .map(|html| Event::InlineHtml(html.into())),
                 Event::DisplayMath(src) => latex_converter
                     .latex_to_html(&src, RenderMode::Display)
                     .context("failed to convert LaTeX to HTML")
-                    .map(|text| Event::InlineHtml(text.into())),
+                    .map(|html| Event::InlineHtml(html.into())),
                 _ => Ok(event),
             });
 
