@@ -10,7 +10,7 @@ const OUTPUT_CONTENT_DIR: &str = "writing/";
 
 fn main() -> Result<()> {
     let Input {
-        content_dir,
+        input_dir,
         output_dir,
     } = read_input()?;
 
@@ -25,7 +25,7 @@ fn main() -> Result<()> {
     let latex_converter =
         LatexConverter::new().context("failed to initialize LaTeX-to-HTML conversion engine")?;
 
-    for article_dir in read_dir(content_dir).context("failed to start traversal of all articles")? {
+    for article_dir in read_dir(input_dir).context("failed to start traversal of all articles")? {
         let article_dir_path = article_dir
             .context("failed to access article directory")?
             .path();

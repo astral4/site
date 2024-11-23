@@ -22,7 +22,7 @@ use syntect::{
 const KATEX_SRC: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../katex/katex.js"));
 
 pub struct Input {
-    pub content_dir: PathBuf,
+    pub input_dir: PathBuf,
     pub output_dir: PathBuf,
 }
 
@@ -35,26 +35,22 @@ pub struct Input {
 pub fn read_input() -> Result<Input> {
     let mut args = args();
 
-    let content_dir: PathBuf = args
+    let input_dir: PathBuf = args
         .next()
-        .ok_or_else(|| anyhow!("articles directory path was not provided"))?
+        .ok_or_else(|| anyhow!("input path was not provided"))?
         .into();
 
-    if !content_dir.is_dir() {
-        return Err(anyhow!(
-            "articles directory path does not point to a directory"
-        ));
+    if !input_dir.is_dir() {
+        return Err(anyhow!("input path does not point to a directory"));
     }
 
     let output_dir: PathBuf = args
         .next()
-        .ok_or_else(|| anyhow!("output directory path was not provided"))?
+        .ok_or_else(|| anyhow!("output path was not provided"))?
         .into();
 
     if !output_dir.is_dir() {
-        return Err(anyhow!(
-            "output directory path does not point to a directory"
-        ));
+        return Err(anyhow!("output path does not point to a directory"));
     }
 
     if args.next().is_some() {
@@ -62,7 +58,7 @@ pub fn read_input() -> Result<Input> {
     }
 
     Ok(Input {
-        content_dir,
+        input_dir,
         output_dir,
     })
 }
