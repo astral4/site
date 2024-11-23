@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Context, Result};
 use foldhash::{HashSet, HashSetExt};
-use pulldown_cmark::{CodeBlockKind, Event, Tag, TagEnd};
+use pulldown_cmark::{html::push_html, CodeBlockKind, Event, Tag, TagEnd};
 use ssg::{
     parse_markdown, process_image, Config, Frontmatter, LatexConverter, RenderMode,
     SyntaxHighlighter,
@@ -28,7 +28,7 @@ fn main() -> Result<()> {
             continue;
         }
 
-        (|| {
+        let article_html = (|| {
             let article_text = read_to_string(input_article_dir.join("index.md"))
                 .context("failed to read article text file")?;
 
@@ -97,7 +97,10 @@ fn main() -> Result<()> {
                 })
                 .collect::<Result<Vec<_>>>()?;
 
-            Ok(())
+            let mut html = String::with_capacity(article_text.len() * 3 / 2);
+            push_html(&mut html, events.into_iter());
+
+            Ok(html)
         })()
         .with_context(|| format!("failed to process article from {input_article_dir:?}"))?;
     }
