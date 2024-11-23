@@ -4,7 +4,7 @@ use image::{codecs::avif::AvifEncoder, GenericImageView, ImageEncoder, ImageRead
 use jiff::civil::Date;
 use pulldown_cmark::{Event, Options, Parser, TextMergeStream};
 use rquickjs::{Context, Exception, Function, Object, Runtime};
-use same_file::is_same_file;
+use same_file::Handle;
 use serde::{
     de::{Error as DeError, Unexpected},
     Deserialize, Deserializer,
@@ -28,11 +28,12 @@ const KATEX_SRC: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../ka
 pub struct Config {
     // path to directory of all articles
     pub articles_dir: Box<Path>,
-    // list of paths to all webpage body files (meant for non-article pages like the site index, the "about" page, etc.)
-    pub body_files: Box<[Box<Path>]>,
+    // path to directory of all webpage body files;
+    // meant for non-article pages like the site index and the "about" page
+    pub body_dir: Box<Path>,
     // path to template HTML file for all webpages
     pub template_file: Box<Path>,
-    // entries in this directory will be copied to the output directory
+    // entries in this directory will be copied to the output directory without any processing
     pub public_dir: Box<Path>,
     // path to directory for generated site output
     pub output_dir: Box<Path>,
@@ -73,15 +74,15 @@ impl Config {
     }
 
     fn check_paths(&self) -> Result<()> {
-        for path in &self.body_files {
-            if !path.is_file() {
-                return Err(anyhow!("`body_files`: {path:?} does not point to a file"));
-            }
-        }
         if !self.articles_dir.is_dir() {
             Err(anyhow!(
                 "`articles_dir`: {:?} does not point to a directory",
                 self.articles_dir
+            ))
+        } else if !self.body_dir.is_dir() {
+            Err(anyhow!(
+                "`body_dir`: {:?} does not point to a directory",
+                self.body_dir
             ))
         } else if !self.template_file.is_file() {
             Err(anyhow!(
@@ -93,22 +94,30 @@ impl Config {
                 "`public_dir`: {:?} does not point to a directory",
                 self.public_dir
             ))
-        } else if is_same_file(&self.output_dir, &self.articles_dir)
-            .context("failed to open a directory during config validation")?
-        {
-            Err(anyhow!(
-                "`output_dir` and `articles_dir` point to the same location"
-            ))
-        } else if is_same_file(&self.output_dir, &self.public_dir)
-            .context("failed to open a directory during config validation")?
-        {
-            Err(anyhow!(
-                "`output_dir` and `public_dir` point to the same location"
-            ))
         } else {
-            Ok(())
+            let output_dir = get_handle(&self.output_dir)?;
+            if output_dir == get_handle(&self.articles_dir)? {
+                Err(anyhow!(
+                    "`output_dir` and `articles_dir` point to the same location"
+                ))
+            } else if output_dir == get_handle(&self.body_dir)? {
+                Err(anyhow!(
+                    "`output_dir` and `body_dir` point to the same location"
+                ))
+            } else if output_dir == get_handle(&self.public_dir)? {
+                Err(anyhow!(
+                    "`output_dir` and `public_dir` point to the same location"
+                ))
+            } else {
+                Ok(())
+            }
         }
     }
+}
+
+fn get_handle<P: AsRef<Path>>(path: P) -> Result<Handle> {
+    Handle::from_path(&path)
+        .with_context(|| format!("failed to open directory at {:?}", path.as_ref()))
 }
 
 #[cfg_attr(test, derive(Debug, PartialEq))]
