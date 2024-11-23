@@ -4,95 +4,110 @@ use image::{codecs::avif::AvifEncoder, GenericImageView, ImageEncoder, ImageRead
 use jiff::civil::Date;
 use pulldown_cmark::{Event, Options, Parser, TextMergeStream};
 use rquickjs::{Context, Exception, Function, Object, Runtime};
+use same_file::is_same_file;
 use serde::{
     de::{Error as DeError, Unexpected},
     Deserialize, Deserializer,
 };
 use std::{
     env::args,
-    fs::{copy, File},
+    fs::{copy, read_to_string, File},
     io::BufWriter,
-    path::{Path, PathBuf},
+    path::Path,
 };
 use syntect::{
     highlighting::{Theme, ThemeSet},
     html::highlighted_html_for_string,
     parsing::SyntaxSet,
 };
+use toml_edit::de::from_str as toml_from_str;
 
 const KATEX_SRC: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../katex/katex.js"));
 
-pub struct Input {
-    pub articles_dir: PathBuf,
-    pub base_pages_dir: PathBuf,
-    pub page_template_path: PathBuf,
-    pub site_css_path: PathBuf,
-    pub output_dir: PathBuf,
+#[derive(Deserialize)]
+pub struct Config {
+    // path to directory of all articles
+    pub articles_dir: Box<Path>,
+    // list of paths to all webpage body files (meant for non-article pages like the site index, the "about" page, etc.)
+    pub body_files: Box<[Box<Path>]>,
+    // path to template HTML file for all webpages
+    pub template_file: Box<Path>,
+    // entries in this directory will be copied to the output directory
+    pub public_dir: Box<Path>,
+    // path to directory for generated site output
+    pub output_dir: Box<Path>,
 }
 
-macro_rules! read_path_arg {
-    ($args:ident, $var:ident, $desc:literal, "dir") => {
-        let $var: PathBuf = $args
-            .next()
-            .ok_or_else(|| ::anyhow::Error::msg(::std::concat!($desc, " path was not provided")))?
-            .into();
-
-        if !$var.is_dir() {
-            return ::std::result::Result::Err(::anyhow::Error::msg(::std::concat!(
-                $desc,
-                " path does not point to a directory"
-            )));
-        }
-    };
-    ($args:ident, $var:ident, $desc:literal, "file") => {
-        let $var: PathBuf = $args
-            .next()
-            .ok_or_else(|| ::anyhow::Error::msg(::std::concat!($desc, " path was not provided")))?
-            .into();
-
-        if !$var.is_file() {
-            return ::std::result::Result::Err(::anyhow::Error::msg(::std::concat!(
-                $desc,
-                " path does not point to a file"
-            )));
-        }
-    };
-}
-
-impl Input {
-    /// Reads paths to the following resources from command-line arguments:
-    /// - directory of all articles
-    /// - directory of all base webpages (index, "about me", etc.)
-    /// - template HTML file for all webpages
-    /// - site-wide CSS file
-    /// - directory for generated site output
+impl Config {
+    /// Reads a config file from a path provided by command-line arguments.
     ///
     /// # Errors
     /// This function returns an error if:
-    /// - not enough arguments are provided
-    /// - too many arguments are provided
-    /// - an argument interpreted as a directory path does not point to a directory
-    /// - an argument interpreted as a file path does not point to a file
+    /// - not enough command-line arguments are provided
+    /// - too many command-line arguments are provided
+    /// - a config parameter interpreted as a directory path does not point to a directory
+    /// - a config parameter interpreted as a file path does not point to a file
+    /// - the output directory path and another path in the config point to the same location
     pub fn from_env() -> Result<Self> {
         let mut args = args();
 
-        read_path_arg!(args, articles_dir, "articles directory", "dir");
-        read_path_arg!(args, base_pages_dir, "base webpages directory", "dir");
-        read_path_arg!(args, page_template_path, "webpage template file", "file");
-        read_path_arg!(args, site_css_path, "site CSS file", "file");
-        read_path_arg!(args, output_dir, "output directory", "dir");
+        let config_path = args
+            .next()
+            .ok_or_else(|| anyhow!("configuration file path was not provided"))?;
 
         if args.next().is_some() {
-            return Err(anyhow!("too many input arguments were supplied"));
+            return Err(anyhow!("too many input arguments were provided"));
         }
 
-        Ok(Input {
-            articles_dir,
-            base_pages_dir,
-            page_template_path,
-            site_css_path,
-            output_dir,
-        })
+        let config: Self = toml_from_str(
+            &read_to_string(&config_path)
+                .with_context(|| format!("failed to read configuration from {config_path}"))?,
+        )
+        .context("failed to parse configuration file")?;
+
+        config
+            .check_paths()
+            .context("configuration file is invalid")?;
+
+        Ok(config)
+    }
+
+    fn check_paths(&self) -> Result<()> {
+        for path in &self.body_files {
+            if !path.is_file() {
+                return Err(anyhow!("`body_files`: {path:?} does not point to a file"));
+            }
+        }
+        if !self.articles_dir.is_dir() {
+            Err(anyhow!(
+                "`articles_dir`: {:?} does not point to a directory",
+                self.articles_dir
+            ))
+        } else if !self.template_file.is_file() {
+            Err(anyhow!(
+                "`template_file`: {:?} does not point to a file",
+                self.template_file
+            ))
+        } else if !self.public_dir.is_dir() {
+            Err(anyhow!(
+                "`public_dir`: {:?} does not point to a directory",
+                self.public_dir
+            ))
+        } else if is_same_file(&self.output_dir, &self.articles_dir)
+            .context("failed to open a directory during config validation")?
+        {
+            Err(anyhow!(
+                "`output_dir` and `articles_dir` point to the same location"
+            ))
+        } else if is_same_file(&self.output_dir, &self.public_dir)
+            .context("failed to open a directory during config validation")?
+        {
+            Err(anyhow!(
+                "`output_dir` and `public_dir` point to the same location"
+            ))
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -316,7 +331,9 @@ pub fn process_image(
         return Err(anyhow!("no source provided for image"));
     }
     if !Path::new(image_path).is_relative() {
-        return Err(anyhow!("image source is not a relative file path"));
+        return Err(anyhow!(
+            "image source is not a relative file path ({image_path})"
+        ));
     }
 
     let input_path = input_article_dir.join(image_path);

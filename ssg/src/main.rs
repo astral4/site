@@ -2,7 +2,7 @@ use anyhow::{anyhow, Context, Result};
 use foldhash::{HashSet, HashSetExt};
 use pulldown_cmark::{CodeBlockKind, Event, Tag, TagEnd};
 use ssg::{
-    parse_markdown, process_image, Frontmatter, Input, LatexConverter, RenderMode,
+    parse_markdown, process_image, Config, Frontmatter, LatexConverter, RenderMode,
     SyntaxHighlighter,
 };
 use std::fs::{create_dir_all, read_dir, read_to_string};
@@ -10,22 +10,18 @@ use std::fs::{create_dir_all, read_dir, read_to_string};
 const OUTPUT_CONTENT_DIR: &str = "writing/";
 
 fn main() -> Result<()> {
-    let Input {
-        articles_dir,
-        base_pages_dir,
-        page_template_path,
-        site_css_path,
-        output_dir,
-    } = Input::from_env()?;
+    let config = Config::from_env().context("failed to read configuration file")?;
 
     let mut slug_tracker = HashSet::new();
 
     let syntax_highlighter = SyntaxHighlighter::new();
 
     let latex_converter =
-        LatexConverter::new().context("failed to initialize LaTeX-to-HTML conversion engine")?;
+        LatexConverter::new().context("failed to initialize LaTeX-to-HTML converter")?;
 
-    for entry in read_dir(articles_dir).context("failed to start traversal of all articles")? {
+    for entry in
+        read_dir(config.articles_dir).context("failed to start traversal of all articles")?
+    {
         let input_article_dir = entry.context("failed to access article directory")?.path();
 
         if !input_article_dir.is_dir() {
@@ -45,7 +41,8 @@ fn main() -> Result<()> {
             ));
         }
 
-        let output_article_dir = output_dir
+        let output_article_dir = config
+            .output_dir
             .join(OUTPUT_CONTENT_DIR)
             .join(&article_frontmatter.slug);
 

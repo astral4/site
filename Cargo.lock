@@ -1536,8 +1536,10 @@ dependencies = [
  "jiff",
  "pulldown-cmark",
  "rquickjs",
+ "same-file",
  "serde",
  "syntect",
+ "toml_edit",
 ]
 
 [[package]]
