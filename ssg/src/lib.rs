@@ -183,7 +183,10 @@ where
 }
 
 /// Parses the input string as Markdown, returning an iterator of Markdown parsing events.
-/// The parser recognizes strikethroughs, YAML-style frontmatter, and math markup.
+/// The parser recognizes the following extensions to the CommonMark standard:
+/// - strikethroughs
+/// - YAML-style frontmatter
+/// - math markup
 pub fn parse_markdown(text: &str) -> impl Iterator<Item = Event<'_>> {
     TextMergeStream::new(Parser::new_ext(
         text,
