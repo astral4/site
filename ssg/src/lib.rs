@@ -59,7 +59,13 @@ macro_rules! read_path_arg {
 }
 
 impl Input {
-    /// Reads the articles directory and output directory from command-line arguments.
+    /// Reads paths to the following resources from command-line arguments:
+    /// - directory of all articles
+    /// - directory of all base webpages (index, "about me", etc.)
+    /// - template HTML file for all webpages
+    /// - site-wide CSS file
+    /// - directory for generated site output
+    ///
     /// # Errors
     /// This function returns an error if:
     /// - not enough arguments are provided
@@ -101,11 +107,13 @@ pub struct Frontmatter {
 }
 
 impl Frontmatter {
+    /// Parses YAML-style frontmatter from the text content of an article in Markdown format.
+    ///
     /// # Errors
     /// This function returns an error if:
-    /// - No frontmatter was found in the text
-    /// - Frontmatter could not be parsed due to invalid syntax, missing fields, invalid field values, etc.
-    /// - The parsed last-updated date is before the parsed creation date
+    /// - no frontmatter is found in the text
+    /// - frontmatter cannot be parsed due to invalid syntax, missing fields, invalid field values, etc.
+    /// - the parsed last-updated date is before the parsed creation date
     pub fn from_text(input: &str) -> Result<Self> {
         let matter: Frontmatter = Matter::<YAML>::new()
             .parse(input)
@@ -160,17 +168,21 @@ pub enum RenderMode {
 }
 
 impl LatexConverter {
-    /// # Errors
-    /// This function returns an error for:
-    /// - failed initialization of the underlying JavaScript runtime from `rquickjs`
-    /// - failed evaluation of the embedded `katex` source code
+    /// Initializes a utility to convert LaTeX source code into HTML.
+    /// The current implementation works by running the KaTeX library in a QuickJS runtime via the `rquickjs` crate.
     ///
-    /// - initializating the underlying `rquickjs` JavaScript runtime fails
-    /// - evaluating the embedded `katex` source code fails
+    /// # Errors
+    /// This function returns an error if:
+    /// - initializating the JavaScript runtime fails
+    /// - evaluating the KaTeX source code fails
     pub fn new() -> Result<Self> {
         let runtime = Runtime::new().context("failed to initialize JS runtime")?;
         let context = Context::full(&runtime).context("failed to initialize JS runtime context")?;
 
+        // When using KaTeX normally (i.e. in a browser or a runtime like Node.js),
+        // importing the library makes the JavaScript runtime evaluate the KaTeX source code.
+        // Essentially, we perform the same process here,
+        // and items exported by KaTeX will be in a object named `katex` with global context.
         context
             .with(|ctx| {
                 ctx.eval::<(), _>(KATEX_SRC)
@@ -181,13 +193,21 @@ impl LatexConverter {
         Ok(Self { context })
     }
 
+    /// Converts a string of LaTeX into a string of HTML.
+    /// The output HTML uses CSS classes from KaTeX.
+    /// The CSS file that comes with KaTeX distributions contains rules for these classes;
+    /// it should be used for math to display properly.
+    ///
     /// # Errors
     /// This function returns an error if
-    /// - the rendering settings could not be initialized
-    /// - the `katex.renderToString()` function could not be found
-    /// - the `katex.renderToString()` function failed to run (e.g. due to invalid LaTeX)
+    /// - the rendering settings cannot be initialized
+    /// - the `katex.renderToString()` function cannot be found
+    /// - the `katex.renderToString()` function fails to run (e.g. due to invalid LaTeX)
     pub fn latex_to_html(&self, src: &str, mode: RenderMode) -> Result<String> {
         self.context.with(|ctx| {
+            // `katex.renderToString()` accepts an object of options.
+            // The `displayMode` option controls whether the input string will be rendered in display or inline mode.
+            // Source: https://katex.org/docs/options
             let settings =
                 Object::new(ctx.clone()).context("failed to initialize `katex` settings")?;
             settings
@@ -200,6 +220,7 @@ impl LatexConverter {
                 )
                 .context("failed to initialize `katex` settings")?;
 
+            // To call `katex.renderToString()`, we have to get the function from global context.
             ctx.globals()
                 .get::<_, Object<'_>>("katex")
                 .context("failed to find the namespace `katex`")?
@@ -208,6 +229,7 @@ impl LatexConverter {
                 .call((src, settings))
                 .map_err(|e| {
                     let mut err = Error::new(e);
+                    // Add exceptions raised by QuickJS to the error chain
                     if let Some(msg) = ctx.catch().as_exception().and_then(Exception::message) {
                         err = err.context(msg);
                     }
@@ -223,19 +245,30 @@ pub struct SyntaxHighlighter {
 }
 
 impl SyntaxHighlighter {
-    #[must_use]
+    /// Initializes a utility to add syntax highlighting to code.
+    /// The current implementation uses the `syntect` crate.
+    ///
     /// # Panics
     /// This function panics if the default theme set of `syntect` does not contain "base16-ocean.light".
+    #[must_use]
     pub fn new() -> Self {
         let syntaxes = SyntaxSet::load_defaults_newlines();
+
+        // To obtain an owned `Theme`, we call `BTreeMap::remove()` instead of `BTreeMap::get()`.
+        // This is fine because we don't care about the entire `ThemeSet`.
+        // (Anyway, if we needed the entire `ThemeSet`, we could just call `ThemeSet::load_defaults()` again.)
         let theme = ThemeSet::load_defaults()
             .themes
-            .remove("base16-ocean.light") // to obtain an owned `Theme`, we call `BTreeMap::remove()` instead of `BTreeMap::get()`
+            .remove("base16-ocean.light")
             .expect("default theme set should include \"base16-ocean.light\"");
 
         Self { syntaxes, theme }
     }
 
+    /// Adds syntax highlighting to a string of code, outputting HTML with inline styles.
+    /// If no language is specified or no syntax for the specified language is found,
+    /// the input string is highlighted as plaintext.
+    ///
     /// # Errors
     /// This function returns an error if `syntect` fails to highlight the provided text.
     pub fn highlight(&self, text: &str, language: Option<&str>) -> Result<String> {
@@ -250,6 +283,10 @@ impl SyntaxHighlighter {
     }
 }
 
+/// Processes an image link by converting the linked image to AVIF and saving it to an output path.
+/// This function outputs a string containing an HTML <img> element
+/// with `src`, `alt`, dimension, and rendering attributes.
+///
 /// # Errors
 /// This function returns an error if:
 /// - the input image path is empty
@@ -280,6 +317,8 @@ pub fn process_image(
 
     let (width, height) = image.dimensions();
 
+    // If the input image path ends with ".avif",
+    // we assume it is already encoded in AVIF and simply copy it to the output destination.
     if input_path.extension().is_some_and(|ext| ext == "avif") {
         copy(&input_path, &output_path).with_context(|| {
             format!("failed to copy file from {input_path:?} to {output_path:?}")
@@ -289,17 +328,16 @@ pub fn process_image(
             File::create(&output_path)
                 .with_context(|| format!("failed to create file at {output_path:?}"))?,
         );
+        // We use the slowest encoding speed for the best compression.
         AvifEncoder::new_with_speed_quality(writer, 1, 80)
             .write_image(image.as_bytes(), width, height, image.color().into())
             .with_context(|| format!("failed to write image to {output_path:?}"))?;
     }
 
-    let html = match id {
+    Ok(match id {
         Some(id) => format!("<img src=\"{image_path}\" alt=\"{alt_text}\" width=\"{width}\" height=\"{height}\" decoding=\"async\" loading=\"lazy\" id=\"{id}\">"),
         None => format!("<img src=\"{image_path}\" alt=\"{alt_text}\" width=\"{width}\" height=\"{height}\" decoding=\"async\" loading=\"lazy\">")
-    };
-
-    Ok(html)
+    })
 }
 
 #[cfg(test)]
