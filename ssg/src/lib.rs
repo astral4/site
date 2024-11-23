@@ -1,12 +1,18 @@
 use anyhow::{anyhow, Context as _, Error, Result};
 use gray_matter::{engine::YAML, Matter};
+use image::{codecs::avif::AvifEncoder, GenericImageView, ImageEncoder, ImageReader};
 use jiff::civil::Date;
 use rquickjs::{Context, Exception, Function, Object, Runtime};
 use serde::{
     de::{Error as DeError, Unexpected},
     Deserialize, Deserializer,
 };
-use std::{env::args, path::PathBuf};
+use std::{
+    env::args,
+    fs::{copy, File},
+    io::BufWriter,
+    path::{Path, PathBuf},
+};
 use syntect::{
     highlighting::{Theme, ThemeSet},
     html::highlighted_html_for_string,
@@ -221,6 +227,59 @@ impl SyntaxHighlighter {
 
         highlighted_html_for_string(text, &self.syntaxes, syntax, &self.theme).map_err(Into::into)
     }
+}
+
+/// # Errors
+/// This function returns an error if:
+/// - the input image path is empty
+/// - the input image path is not relative
+/// - the file at the input image path cannot be opened or read from
+/// - the file at the output file path cannot be created or written to
+pub fn process_image(
+    input_article_dir: &Path,
+    output_article_dir: &Path,
+    image_path: &str,
+    alt_text: &str,
+    id: Option<&str>,
+) -> Result<String> {
+    if image_path.is_empty() {
+        return Err(anyhow!("no source provided for image"));
+    }
+    if !Path::new(image_path).is_relative() {
+        return Err(anyhow!("image source is not a relative file path"));
+    }
+
+    let input_path = input_article_dir.join(image_path);
+    let output_path = output_article_dir.join(image_path).with_extension("avif");
+
+    let image = ImageReader::open(&input_path)
+        .with_context(|| format!("failed to open file at {input_path:?}"))?
+        .decode()
+        .with_context(|| format!("failed to read image from {input_path:?}"))?;
+
+    let (width, height) = image.dimensions();
+
+    if input_path.extension().is_some_and(|ext| ext == "avif") {
+        copy(&input_path, &output_path).with_context(|| {
+            format!("failed to copy file from {input_path:?} to {output_path:?}")
+        })?;
+    } else {
+        let writer = BufWriter::new(
+            File::create(&output_path)
+                .with_context(|| format!("failed to create file at {output_path:?}"))?,
+        );
+        AvifEncoder::new_with_speed_quality(writer, 1, 80)
+            .write_image(image.as_bytes(), width, height, image.color().into())
+            .with_context(|| format!("failed to write image to {output_path:?}"))?;
+    }
+
+    let html = if let Some(id) = id {
+        format!("<img src=\"{image_path}\" alt=\"{alt_text}\" width=\"{width}\" height=\"{height}\" decoding=\"async\" loading=\"lazy\" id=\"{id}\">")
+    } else {
+        format!("<img src=\"{image_path}\" alt=\"{alt_text}\" width=\"{width}\" height=\"{height}\" decoding=\"async\" loading=\"lazy\">")
+    };
+
+    Ok(html)
 }
 
 #[cfg(test)]

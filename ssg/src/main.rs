@@ -1,8 +1,12 @@
 use anyhow::{anyhow, Context, Result};
 use foldhash::{HashSet, HashSetExt};
 use pulldown_cmark::{CodeBlockKind, Event, Options, Parser, Tag, TagEnd, TextMergeStream};
-use ssg::{read_input, Frontmatter, Input, LatexConverter, RenderMode, SyntaxHighlighter};
-use std::fs::{read_dir, read_to_string};
+use ssg::{
+    process_image, read_input, Frontmatter, Input, LatexConverter, RenderMode, SyntaxHighlighter,
+};
+use std::fs::{create_dir_all, read_dir, read_to_string};
+
+const OUTPUT_CONTENT_DIR: &str = "writing/";
 
 fn main() -> Result<()> {
     let Input {
@@ -39,6 +43,12 @@ fn main() -> Result<()> {
             ));
         }
 
+        let output_article_dir = output_dir
+            .join(OUTPUT_CONTENT_DIR)
+            .join(&article_frontmatter.slug);
+
+        create_dir_all(&output_article_dir).context("failed to create output article directory")?;
+
         let mut is_in_code_block = false;
         let mut code_language = None;
 
@@ -66,6 +76,20 @@ fn main() -> Result<()> {
                         Ok(event)
                     }
                 }
+                Event::Start(Tag::Image {
+                    dest_url,
+                    title,
+                    id,
+                    ..
+                }) => process_image(
+                    &article_dir_path,
+                    &output_article_dir,
+                    &dest_url,
+                    &title,
+                    (!id.is_empty()).then_some(&id),
+                )
+                .context("failed to process image")
+                .map(|html| Event::InlineHtml(html.into())),
                 Event::InlineMath(src) => latex_converter
                     .latex_to_html(&src, RenderMode::Inline)
                     .context("failed to convert LaTeX to HTML")
