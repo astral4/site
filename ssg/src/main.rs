@@ -28,6 +28,8 @@ fn main() -> Result<()> {
             continue;
         }
 
+        let mut article_contains_math = false;
+
         let article_html = (|| {
             let article_text = read_to_string(input_article_dir.join("index.md"))
                 .context("failed to read article text file")?;
@@ -85,14 +87,20 @@ fn main() -> Result<()> {
                     )
                     .context("failed to process image")
                     .map(|html| Event::InlineHtml(html.into())),
-                    Event::InlineMath(src) => latex_converter
-                        .latex_to_html(&src, RenderMode::Inline)
-                        .context("failed to convert LaTeX to HTML")
-                        .map(|html| Event::InlineHtml(html.into())),
-                    Event::DisplayMath(src) => latex_converter
-                        .latex_to_html(&src, RenderMode::Display)
-                        .context("failed to convert LaTeX to HTML")
-                        .map(|html| Event::InlineHtml(html.into())),
+                    Event::InlineMath(src) => {
+                        article_contains_math = true;
+                        latex_converter
+                            .latex_to_html(&src, RenderMode::Inline)
+                            .context("failed to convert LaTeX to HTML")
+                            .map(|html| Event::InlineHtml(html.into()))
+                    }
+                    Event::DisplayMath(src) => {
+                        article_contains_math = true;
+                        latex_converter
+                            .latex_to_html(&src, RenderMode::Display)
+                            .context("failed to convert LaTeX to HTML")
+                            .map(|html| Event::InlineHtml(html.into()))
+                    }
                     _ => Ok(event),
                 })
                 .collect::<Result<Vec<_>>>()?;
