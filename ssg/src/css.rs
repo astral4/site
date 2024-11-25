@@ -10,6 +10,7 @@ use lightningcss::{
 };
 use std::collections::HashSet;
 
+#[cfg_attr(test, derive(Debug, PartialEq))]
 pub struct CssOutput {
     css: String,
     dependencies: Option<Vec<String>>,
@@ -57,6 +58,7 @@ pub fn transform_css(source: &str) -> Result<CssOutput> {
         })
         .context("failed to serialize CSS for dependency analysis")?
         .dependencies
+        .filter(|deps| !deps.is_empty())
         .map(|deps| {
             deps.into_iter()
                 .filter_map(|dep| match dep {
@@ -99,4 +101,33 @@ pub fn transform_css(source: &str) -> Result<CssOutput> {
         .code;
 
     Ok(CssOutput { css, dependencies })
+}
+
+#[cfg(test)]
+mod test {
+    use super::{transform_css, CssOutput};
+
+    #[test]
+    fn transform() {
+        assert_eq!(
+            transform_css("p { font-size: 1em }").expect("CSS transformation should succeed"),
+            CssOutput {
+                css: String::from("p{font-size:1em}"),
+                dependencies: None
+            }
+        );
+
+        assert_eq!(
+            transform_css(
+                "@font-face { font-family: 'Foo'; src: url('foo.woff2') format('woff2'); }"
+            )
+            .expect("CSS transformation should succeed"),
+            CssOutput {
+                css: String::from(
+                    "@font-face{font-family:Foo;src:url(foo.woff2)format(\"woff2\")}"
+                ),
+                dependencies: Some(vec![String::from("foo.woff2")])
+            }
+        );
+    }
 }
