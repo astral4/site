@@ -69,25 +69,98 @@ impl PageBuilder {
 }
 
 fn create_el(name: &str) -> Node {
-    Node::Element(Element::new(create_name(name), vec![]))
+    Node::Element(Element::new(create_name(name, NameKind::Element), vec![]))
 }
 
 fn create_el_with_attrs<const N: usize>(name: &str, attrs: [(&str, &str); N]) -> Node {
     let attrs = attrs
         .map(|(key, value)| Attribute {
-            name: create_name(key),
+            name: create_name(key, NameKind::Attr),
             value: value.into(),
         })
         .to_vec();
 
-    Node::Element(Element::new(create_name(name), attrs))
+    Node::Element(Element::new(create_name(name, NameKind::Element), attrs))
 }
 
-fn create_name(name: &str) -> QualName {
+fn create_name(name: &str, kind: NameKind) -> QualName {
     QualName {
         prefix: None,
-        ns: ns!(html),
+        ns: match kind {
+            NameKind::Element => ns!(html),
+            NameKind::Attr => ns!(),
+        },
         local: LocalName::try_static(name)
             .expect("calls to this function should supply valid names"),
+    }
+}
+
+#[derive(Clone, Copy)]
+enum NameKind {
+    Element,
+    Attr,
+}
+
+#[cfg(test)]
+mod test {
+    use super::{create_el, create_el_with_attrs};
+    use scraper::Html;
+
+    #[test]
+    fn create_element() {
+        // test serializing non-void element
+        let mut html = Html::new_fragment();
+        html.tree.root_mut().append(create_el("p"));
+        assert_eq!(html.html(), "<p></p>");
+
+        // test serializing void element
+        let mut html = Html::new_fragment();
+        html.tree.root_mut().append(create_el("img"));
+        assert_eq!(html.html(), "<img>");
+    }
+
+    #[test]
+    fn create_element_with_attrs() {
+        // test serializing element with empty attribute name
+        let mut html = Html::new_fragment();
+        html.tree
+            .root_mut()
+            .append(create_el_with_attrs("p", [("", "")]));
+        assert_eq!(html.html(), "<p =\"\"></p>");
+
+        // test serializing element with empty attribute value
+        let mut html = Html::new_fragment();
+        html.tree
+            .root_mut()
+            .append(create_el_with_attrs("p", [("id", "")]));
+        assert_eq!(html.html(), "<p id=\"\"></p>");
+
+        // test serializing non-void element
+        let mut html = Html::new_fragment();
+        html.tree
+            .root_mut()
+            .append(create_el_with_attrs("p", [("id", "abc")]));
+        assert_eq!(html.html(), "<p id=\"abc\"></p>");
+
+        // test serializing void element
+        let mut html = Html::new_fragment();
+        html.tree
+            .root_mut()
+            .append(create_el_with_attrs("img", [("id", "abc")]));
+        assert_eq!(html.html(), "<img id=\"abc\">");
+    }
+
+    #[should_panic]
+    #[test]
+    fn create_nonexistent_element() {
+        // "_" should be an invalid element name
+        create_el("_");
+    }
+
+    #[should_panic]
+    #[test]
+    fn create_element_with_nonexistent_attrs() {
+        // "_" should be an invalid attribute name
+        create_el_with_attrs("p", [("_", "abc")]);
     }
 }
