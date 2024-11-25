@@ -32,7 +32,7 @@ impl Config {
     /// - a config parameter interpreted as a file path does not point to a file
     /// - the output directory path and another path in the config point to the same location
     pub fn from_env() -> Result<Self> {
-        let mut args = args();
+        let mut args = args().skip(1);
 
         let config_path = args
             .next()
