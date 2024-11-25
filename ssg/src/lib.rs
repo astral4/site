@@ -39,8 +39,6 @@ pub struct Config {
     // path to directory of all webpage body files;
     // meant for non-article pages like the site index and the "about" page
     pub body_dir: Box<Path>,
-    // path to site-wide template HTML file
-    pub template_file: Box<Path>,
     // path to site-wide CSS file
     pub site_css_file: Box<Path>,
     // path to directory for generated site output
@@ -91,11 +89,6 @@ impl Config {
             Err(anyhow!(
                 "`body_dir`: {:?} does not point to a directory",
                 self.body_dir
-            ))
-        } else if !self.template_file.is_file() {
-            Err(anyhow!(
-                "`template_file`: {:?} does not point to a file",
-                self.template_file
             ))
         } else if !self.site_css_file.is_file() {
             Err(anyhow!(
