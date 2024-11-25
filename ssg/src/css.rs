@@ -1,24 +1,21 @@
-//! Code for CSS minification and dependency analysis.
+//! Code for CSS minification and font dependency analysis.
 
 use anyhow::{Context, Result};
 use lightningcss::{
-    dependencies::{Dependency, DependencyOptions},
     error::Error,
     printer::PrinterOptions,
+    rules::{
+        font_face::{FontFaceProperty, FontFormat, Source},
+        CssRule,
+    },
     stylesheet::{MinifyOptions, ParserFlags, ParserOptions, StyleSheet},
     targets::{Browsers, Features, Targets},
 };
 use std::collections::HashSet;
 
-#[cfg_attr(test, derive(Debug, PartialEq))]
-pub struct CssOutput {
-    css: String,
-    dependencies: Option<Vec<String>>,
-}
-
 /// Parses the input string as CSS. This function returns:
 /// - minified CSS compatible with a set of "reasonable" target browser versions
-/// - a list of `url()` dependencies if they exist
+/// - a list of font dependencies (highest-priority sources only) if they exist
 ///
 /// # Errors
 /// This function returns an error if:
@@ -49,26 +46,7 @@ pub fn transform_css(source: &str) -> Result<CssOutput> {
     .map_err(Error::into_owned)
     .context("failed to parse input as valid CSS")?;
 
-    // Find `url()` dependencies in stylesheet
-    let dependencies = stylesheet
-        .to_css(PrinterOptions {
-            // Opt into dependency analysis
-            analyze_dependencies: Some(DependencyOptions::default()),
-            ..Default::default()
-        })
-        .context("failed to serialize CSS for dependency analysis")?
-        .dependencies
-        .filter(|deps| !deps.is_empty())
-        .map(|deps| {
-            deps.into_iter()
-                .filter_map(|dep| match dep {
-                    Dependency::Import(_) => None,
-                    Dependency::Url(dep) => Some(dep.url),
-                })
-                .collect()
-        });
-
-    // Determine target browser versions for CSS compilation
+    // Determine target browser versions for stylesheet compilation
     let targets = Targets {
         browsers: Some(
             Browsers::from_browserslist(["defaults"])
@@ -79,7 +57,7 @@ pub fn transform_css(source: &str) -> Result<CssOutput> {
         exclude: Features::empty(),
     };
 
-    // Minify CSS based on target browser versions
+    // Minify stylesheet based on target browser versions
     stylesheet
         .minify(MinifyOptions {
             targets,
@@ -87,7 +65,7 @@ pub fn transform_css(source: &str) -> Result<CssOutput> {
         })
         .context("failed to minify CSS")?;
 
-    // Serialize CSS to string
+    // Serialize stylesheet to string
     let css = stylesheet
         .to_css(PrinterOptions {
             // Remove whitespace
@@ -100,33 +78,94 @@ pub fn transform_css(source: &str) -> Result<CssOutput> {
         .context("failed to serialize minified CSS")?
         .code;
 
-    Ok(CssOutput { css, dependencies })
+    // Find the highest-priority source for each font used by the stylesheet
+    let fonts = stylesheet
+        .rules
+        .0
+        .into_iter()
+        .filter_map(|rule| match rule {
+            CssRule::FontFace(font_rule) => Some(font_rule.properties),
+            _ => None,
+        })
+        .flatten()
+        .filter_map(|property| match property {
+            FontFaceProperty::Source(sources) => Some(sources),
+            _ => None,
+        })
+        .filter_map(|mut sources| (!sources.is_empty()).then(|| sources.swap_remove(0))) // Gets the first element in owned form
+        .filter_map(|src| match src {
+            Source::Url(url_src) => Some(url_src),
+            Source::Local(_) => None,
+        })
+        .map(|src| Font {
+            path: Box::from(&*src.url.url),
+            mime: src.format.and_then(|format| match format {
+                FontFormat::WOFF2 => Some("font/woff2"),
+                FontFormat::WOFF => Some("font/woff"),
+                FontFormat::TrueType => Some("font/ttf"),
+                FontFormat::OpenType => Some("font/otf"),
+                FontFormat::SVG => Some("image/svg+xml"),
+                _ => None,
+            }),
+        })
+        .collect::<Vec<_>>();
+
+    Ok(CssOutput {
+        css,
+        top_fonts: (!fonts.is_empty()).then_some(fonts),
+    })
+}
+
+#[cfg_attr(test, derive(Debug, PartialEq))]
+pub struct CssOutput {
+    pub css: String,
+    pub top_fonts: Option<Vec<Font>>,
+}
+
+#[cfg_attr(test, derive(Debug, PartialEq))]
+pub struct Font {
+    pub path: Box<str>,
+    pub mime: Option<&'static str>,
 }
 
 #[cfg(test)]
 mod test {
-    use super::{transform_css, CssOutput};
+    use super::{transform_css, CssOutput, Font};
 
     #[test]
     fn transform() {
         assert_eq!(
             transform_css("p { font-size: 1em }").expect("CSS transformation should succeed"),
             CssOutput {
-                css: String::from("p{font-size:1em}"),
-                dependencies: None
+                css: "p{font-size:1em}".into(),
+                top_fonts: None
             }
         );
 
         assert_eq!(
-            transform_css(
-                "@font-face { font-family: 'Foo'; src: url('foo.woff2') format('woff2'); }"
-            )
-            .expect("CSS transformation should succeed"),
+            transform_css("@font-face { src: url('foo.bin') format('woff2'); }")
+                .expect("CSS transformation should succeed"),
             CssOutput {
-                css: String::from(
-                    "@font-face{font-family:Foo;src:url(foo.woff2)format(\"woff2\")}"
-                ),
-                dependencies: Some(vec![String::from("foo.woff2")])
+                css: "@font-face{src:url(foo.bin)format(\"woff2\")}".into(),
+                top_fonts: Some(vec![Font {
+                    path: "foo.bin".into(),
+                    mime: Some("font/woff2")
+                }])
+            }
+        );
+
+        assert_eq!(
+            transform_css("@font-face { src: url('foo.bin') format('woff'), url('bar.bin') format('ttf'); } @font-face { src: url('baz.bin'); }")
+                .expect("CSS transformation should succeed"),
+            CssOutput {
+                css: "@font-face{src:url(foo.bin)format(\"woff\"),url(bar.bin)format(\"ttf\")}@font-face{src:url(baz.bin)}".into(),
+                top_fonts: Some(vec![Font {
+                    path: "foo.bin".into(),
+                    mime: Some("font/woff")
+                }, Font {
+                    path: "baz.bin".into(),
+                    mime: None
+                }])
             }
         );
     }

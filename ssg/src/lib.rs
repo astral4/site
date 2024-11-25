@@ -8,7 +8,7 @@ mod latex;
 
 pub use builder::PageBuilder;
 pub use config::Config;
-pub use css::{transform_css, CssOutput};
+pub use css::{transform_css, CssOutput, Font};
 pub use frontmatter::Frontmatter;
 pub use highlight::SyntaxHighlighter;
 pub use image::process_image;
