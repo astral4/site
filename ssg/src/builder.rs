@@ -25,8 +25,9 @@ impl PageBuilder {
         // the parser is supposed to be resilient and fall back to HTML quirks mode upon encountering errors.
         // So, after parsing, we have to check for any errors encountered ourselves.
         match body.errors.first() {
-            Some(err) => Err(Error::msg(err.clone())
-                .context("encountered errors when parsing page body as HTML")),
+            Some(err) => {
+                Err(Error::msg(err.clone()).context("failed to parse input as valid HTML"))
+            }
             None => Ok(Self { body: body.tree }),
         }
     }

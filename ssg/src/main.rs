@@ -2,10 +2,10 @@ use anyhow::{anyhow, Context, Result};
 use foldhash::{HashSet, HashSetExt};
 use pulldown_cmark::{html::push_html, CodeBlockKind, Event, Tag, TagEnd};
 use ssg::{
-    parse_markdown, process_image, Config, Frontmatter, LatexConverter, RenderMode,
+    parse_markdown, process_image, Config, Frontmatter, LatexConverter, PageBuilder, RenderMode,
     SyntaxHighlighter,
 };
-use std::fs::{create_dir_all, read_dir, read_to_string};
+use std::fs::{create_dir_all, read_dir, read_to_string, write};
 
 const OUTPUT_CONTENT_DIR: &str = "writing/";
 
@@ -30,7 +30,7 @@ fn main() -> Result<()> {
 
         let mut article_contains_math = false;
 
-        let article_html = (|| {
+        (|| {
             let article_text = read_to_string(input_article_dir.join("index.md"))
                 .context("failed to read article text file")?;
 
@@ -49,8 +49,9 @@ fn main() -> Result<()> {
                 .join(OUTPUT_CONTENT_DIR)
                 .join(&*article_frontmatter.slug);
 
-            create_dir_all(&output_article_dir)
-                .context("failed to create output article directory")?;
+            create_dir_all(&output_article_dir).with_context(|| {
+                format!("failed to create output article directory at {output_article_dir:?}")
+            })?;
 
             let mut is_in_code_block = false;
             let mut code_language = None;
@@ -105,10 +106,19 @@ fn main() -> Result<()> {
                 })
                 .collect::<Result<Vec<_>>>()?;
 
-            let mut html = String::with_capacity(article_text.len() * 3 / 2);
-            push_html(&mut html, events.into_iter());
+            let mut article_body = String::with_capacity(article_text.len() * 3 / 2);
+            push_html(&mut article_body, events.into_iter());
 
-            Ok(html)
+            let article_html = PageBuilder::new(&article_body)
+                .context("failed to parse processed article body as valid HTML")?
+                .build_page(&article_frontmatter.title, &config.name);
+
+            let output_article_path = output_article_dir.join("index.html");
+            write(&output_article_path, article_html).with_context(|| {
+                format!("failed to write article HTML to {output_article_path:?}")
+            })?;
+
+            Ok(())
         })()
         .with_context(|| format!("failed to process article from {input_article_dir:?}"))?;
     }
