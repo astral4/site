@@ -11,8 +11,8 @@ use serde::{
 #[cfg_attr(test, derive(Debug, PartialEq))]
 #[derive(Deserialize)]
 pub struct Frontmatter {
-    pub title: String,
-    pub slug: String,
+    pub title: Box<str>,
+    pub slug: Box<str>,
     #[serde(deserialize_with = "deserialize_date")]
     pub created: Date,
     #[serde(default, deserialize_with = "deserialize_optional_date")]
@@ -126,8 +126,8 @@ mod test {
         assert_eq!(
             Frontmatter::from_text(GOOD_1).expect("parsing should succeed"),
             Frontmatter {
-                title: String::from("abc"),
-                slug: String::from("def"),
+                title: "abc".into(),
+                slug: "def".into(),
                 created: date(2000, 1, 1),
                 updated: None
             }
@@ -135,8 +135,8 @@ mod test {
         assert_eq!(
             Frontmatter::from_text(GOOD_2).expect("parsing should succeed"),
             Frontmatter {
-                title: String::from("abc"),
-                slug: String::from("def"),
+                title: "abc".into(),
+                slug: "def".into(),
                 created: date(2000, 1, 1),
                 updated: Some(date(2000, 1, 1))
             }
@@ -148,8 +148,8 @@ mod test {
         assert_eq!(
             Frontmatter::from_text(GOOD_4).expect("parsing should succeed due to ignoring dates"),
             Frontmatter {
-                title: String::from("abc"),
-                slug: String::from("def"),
+                title: "abc".into(),
+                slug: "def".into(),
                 created: date(2000, 1, 1),
                 updated: Some(date(2000, 1, 1))
             }

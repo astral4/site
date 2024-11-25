@@ -47,7 +47,7 @@ fn main() -> Result<()> {
             let output_article_dir = config
                 .output_dir
                 .join(OUTPUT_CONTENT_DIR)
-                .join(&article_frontmatter.slug);
+                .join(&*article_frontmatter.slug);
 
             create_dir_all(&output_article_dir)
                 .context("failed to create output article directory")?;
