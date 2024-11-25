@@ -15,6 +15,7 @@ foldhash = "0.1.3"
 gray_matter = { version = "0.2.8", default-features = false, features = ["yaml"] }
 image = { version = "0.25.5", default-features = false, features = ["avif", "gif", "jpeg", "png", "webp"] }
 jiff = { version = "0.1.14", default-features = false, features = ["alloc", "std"] }
+lightningcss = { version = "1.0.0-alpha.61", default-features = false, features = ["browserslist", "grid", "into_owned"] }
 markup5ever = "0.14.0"
 pulldown-cmark = { version = "0.12.2", default-features = false, features = ["html", "simd"] }
 rquickjs = { version = "0.8.0", features = ["parallel", "rust-alloc"] }
