@@ -105,50 +105,58 @@ enum NameKind {
 #[cfg(test)]
 mod test {
     use super::{create_el, create_el_with_attrs};
-    use scraper::Html;
+    use scraper::{Html, Node};
+
+    /// Utility function for asserting that the HTML representation of `element` is equal to `expected`
+    fn assert_eq_serialized(element: Node, expected: &str) {
+        let mut html = Html::new_fragment();
+        html.tree.root_mut().append(element);
+        assert_eq!(html.html(), expected);
+    }
 
     #[test]
     fn create_element() {
-        // test serializing non-void element
-        let mut html = Html::new_fragment();
-        html.tree.root_mut().append(create_el("p"));
-        assert_eq!(html.html(), "<p></p>");
+        // non-void element
+        assert_eq_serialized(create_el("p"), "<p></p>");
 
-        // test serializing void element
-        let mut html = Html::new_fragment();
-        html.tree.root_mut().append(create_el("img"));
-        assert_eq!(html.html(), "<img>");
+        // void element
+        assert_eq_serialized(create_el("img"), "<img>");
     }
 
     #[test]
     fn create_element_with_attrs() {
-        // test serializing element with empty attribute name
-        let mut html = Html::new_fragment();
-        html.tree
-            .root_mut()
-            .append(create_el_with_attrs("p", [("", "")]));
-        assert_eq!(html.html(), "<p =\"\"></p>");
+        // element with empty attribute name and value
+        assert_eq_serialized(create_el_with_attrs("p", [("", "")]), "<p =\"\"></p>");
 
-        // test serializing element with empty attribute value
-        let mut html = Html::new_fragment();
-        html.tree
-            .root_mut()
-            .append(create_el_with_attrs("p", [("id", "")]));
-        assert_eq!(html.html(), "<p id=\"\"></p>");
+        // element with empty attribute name
+        assert_eq_serialized(create_el_with_attrs("p", [("", "abc")]), "<p =\"abc\"></p>");
 
-        // test serializing non-void element
-        let mut html = Html::new_fragment();
-        html.tree
-            .root_mut()
-            .append(create_el_with_attrs("p", [("id", "abc")]));
-        assert_eq!(html.html(), "<p id=\"abc\"></p>");
+        // element with empty attribute value
+        assert_eq_serialized(create_el_with_attrs("p", [("id", "")]), "<p id=\"\"></p>");
 
-        // test serializing void element
-        let mut html = Html::new_fragment();
-        html.tree
-            .root_mut()
-            .append(create_el_with_attrs("img", [("id", "abc")]));
-        assert_eq!(html.html(), "<img id=\"abc\">");
+        // non-void element with single attribute
+        assert_eq_serialized(
+            create_el_with_attrs("p", [("id", "abc")]),
+            "<p id=\"abc\"></p>",
+        );
+
+        // non-void element with multiple attributes
+        assert_eq_serialized(
+            create_el_with_attrs("p", [("id", "abc"), ("class", "def")]),
+            "<p id=\"abc\" class=\"def\"></p>",
+        );
+
+        // void element with single attribute
+        assert_eq_serialized(
+            create_el_with_attrs("img", [("id", "abc")]),
+            "<img id=\"abc\">",
+        );
+
+        // void element with multiple attributes
+        assert_eq_serialized(
+            create_el_with_attrs("img", [("id", "abc"), ("class", "def")]),
+            "<img id=\"abc\" class=\"def\">",
+        );
     }
 
     #[should_panic]
