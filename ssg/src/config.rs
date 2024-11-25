@@ -8,16 +8,16 @@ use toml_edit::de::from_str as toml_from_str;
 
 #[derive(Deserialize)]
 pub struct Config {
-    // your full name
+    // Your full name
     pub name: Box<str>,
-    // path to directory of all articles
+    // Path to directory of all articles
     pub articles_dir: Box<Path>,
-    // path to directory of all webpage body files;
+    // Path to directory of all webpage body files;
     // meant for non-article pages like the site index and the "about" page
     pub body_dir: Box<Path>,
-    // path to site-wide CSS file
+    // Path to site-wide CSS file
     pub site_css_file: Box<Path>,
-    // path to directory for generated site output
+    // Path to directory for generated site output
     pub output_dir: Box<Path>,
 }
 

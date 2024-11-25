@@ -14,10 +14,10 @@ pub struct PageBuilder {
 }
 
 impl PageBuilder {
-    /// Initializes the webpage HTML builder, parsing an input string as a HTML `<body>`.
+    /// Initializes the webpage HTML builder, parsing the input string as a HTML `<body>`.
     ///
     /// # Errors
-    /// This function returns an error if the input string could not be successfully parsed as no-quirks HTML.
+    /// This function returns an error if the input string cannot be successfully parsed as no-quirks HTML.
     pub fn new(body: &str) -> Result<Self> {
         let body = Html::parse_fragment(body);
 
