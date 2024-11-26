@@ -127,7 +127,7 @@ fn main() -> Result<()> {
 
             let article_html = PageBuilder::new(&article_body)
                 .context("failed to parse processed article body as valid HTML")?
-                .build_page(&article_frontmatter.title, &config.name);
+                .build_page(&article_frontmatter.title, &config.name, &top_fonts);
 
             let output_article_path = output_article_dir.join("index.html");
             write(&output_article_path, article_html).with_context(|| {
