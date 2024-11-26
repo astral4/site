@@ -31,6 +31,32 @@ fn main() -> Result<()> {
     // Create page builder (template for every page)
     let page_builder = PageBuilder::new(&config.name, &top_fonts);
 
+    // Process all fragment files
+    for fragment in config.fragments {
+        (|| -> Result<()> {
+            // Get fragment text
+            let fragment_text =
+                read_to_string(&fragment.path).context("failed to read fragment file")?;
+
+            // Build complete page from fragment
+            let html = page_builder
+                .build_page(&fragment.title, &fragment_text)
+                .context("failed to parse fragment as valid HTML")?;
+
+            // Write page HTML to a file in the output directory
+            let output_path = config
+                .output_dir
+                .join(&fragment.path)
+                .with_extension("html");
+
+            write(&output_path, html)
+                .with_context(|| format!("failed to write HTML to {output_path:?}"))?;
+
+            Ok(())
+        })()
+        .with_context(|| format!("failed to process fragment at {:?}", fragment.path))?;
+    }
+
     // Check for duplicate slugs from articles' frontmatter so every article has a unique output directory
     let mut slug_tracker = HashSet::new();
 
@@ -45,18 +71,24 @@ fn main() -> Result<()> {
     for entry in
         read_dir(config.articles_dir).context("failed to start traversal of all articles")?
     {
-        let input_article_dir = entry.context("failed to access article directory")?.path();
+        let input_article_dir = {
+            let entry_path = entry
+                .context("failed to access entry in articles directory")?
+                .path();
 
-        if !input_article_dir.is_dir() {
-            continue;
-        }
+            if !entry_path.is_dir() {
+                continue;
+            }
+
+            entry_path
+        };
 
         let mut article_contains_math = false;
 
         (|| {
             // Get article text
             let article_text = read_to_string(input_article_dir.join("index.md"))
-                .context("failed to read article text file")?;
+                .context("failed to read article file")?;
 
             // Parse frontmatter from article text
             let article_frontmatter = Frontmatter::from_text(&article_text)
