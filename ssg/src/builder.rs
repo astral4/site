@@ -2,40 +2,25 @@
 
 use crate::{css::Font, OUTPUT_SITE_CSS_FILE};
 use anyhow::{Error, Result};
-use ego_tree::{tree, Tree};
-use markup5ever::{namespace_url, ns, Attribute, LocalName, QualName};
+use ego_tree::{tree, NodeId, Tree};
+use markup5ever::{interface::QuirksMode, namespace_url, ns, Attribute, LocalName, QualName};
 use scraper::{
     node::{Doctype, Element, Node, Text},
     Html,
 };
 
 pub struct PageBuilder {
-    body: Tree<Node>,
+    template_html: Tree<Node>,
+    head_id: NodeId,
+    body_id: NodeId,
 }
 
 impl PageBuilder {
-    /// Initializes the webpage HTML builder, parsing the input string as a HTML `<body>`.
-    ///
-    /// # Errors
-    /// This function returns an error if the input string cannot be successfully parsed as no-quirks HTML.
-    pub fn new(body: &str) -> Result<Self> {
-        let body = Html::parse_fragment(body);
-
-        // `Html::parse_fragment()` doesn't return a `Result` because
-        // the parser is supposed to be resilient and fall back to HTML quirks mode upon encountering errors.
-        // So, after parsing, we have to check for any errors encountered ourselves.
-        match body.errors.first() {
-            Some(err) => {
-                Err(Error::msg(err.clone()).context("failed to parse input as valid HTML"))
-            }
-            None => Ok(Self { body: body.tree }),
-        }
-    }
-
-    /// Consumes the webpage HTML builder, outputting a string containing a complete HTML document.
-    /// The output HTML specifies preloaded fonts based on the provided list of font sources.
+    /// Initializes a webpage HTML builder. Every page built:
+    /// - includes the provided author as a metadata tag
+    /// - specifies preloaded fonts based on the provided list of font sources.
     #[must_use]
-    pub fn build_page(self, title: &str, author: &str, fonts: &[Font]) -> String {
+    pub fn new(author: &str, site_fonts: &[Font]) -> Self {
         let mut html = Html::new_document();
         let mut root_node = html.tree.root_mut();
 
@@ -55,13 +40,12 @@ impl PageBuilder {
                 create_el_with_attrs("meta", &[("charset", "utf-8")]),
                 create_el_with_attrs("meta", &[("name", "viewport"), ("content", "width=device-width, initial-scale=1")]),
                 create_el_with_attrs("meta", &[("name", "author"), ("content", author)]),
-                create_el("title") => { Node::Text(Text { text: title.into() }) },
                 create_el_with_attrs("link", &[("rel", "stylesheet"), ("href", OUTPUT_SITE_CSS_FILE)])
             }
         });
 
         // Add font `<link>`s within `<head>`
-        for font in fonts {
+        for font in site_fonts {
             let mut attrs = Vec::with_capacity(5);
             attrs.push(("rel", "preload"));
             attrs.push(("href", &font.path));
@@ -78,12 +62,49 @@ impl PageBuilder {
             head_el_node.append(create_el_with_attrs("link", &attrs));
         }
 
-        // Add `<body>` within `<html>`
-        let mut body_el_node = html_el_node.append(create_el("body"));
-        body_el_node.append_subtree(self.body);
+        let head_id = head_el_node.id();
+        let body_id = html_el_node.append(create_el("body")).id();
+
+        Self {
+            template_html: html.tree,
+            head_id,
+            body_id,
+        }
+    }
+
+    /// Outputs a string containing a complete HTML document based on the provided document title and body.
+    ///
+    /// # Errors
+    /// This function returns an error if the input body cannot be successfully parsed as no-quirks HTML.
+    pub fn build_page(&self, title: &str, body: &str) -> Result<String> {
+        let body = Html::parse_fragment(body);
+
+        // `Html::parse_fragment()` doesn't return a `Result` because
+        // the parser is supposed to be resilient and fall back to HTML quirks mode upon encountering errors.
+        // So, after parsing, we have to check for any errors encountered ourselves.
+        if let Some(err) = body.errors.first() {
+            return Err(Error::msg(err.clone()).context("failed to parse input as valid HTML"));
+        }
+
+        let mut html = self.template_html.clone();
+
+        // SAFETY: the ID is valid because it was generated in the constructor `PageBuilder::new()`.
+        let mut head_node = unsafe { html.get_unchecked_mut(self.head_id) };
+        head_node.append_subtree(tree! {
+            create_el("title") => { Node::Text(Text { text: title.into() }) }
+        });
+
+        // SAFETY: the ID is valid because it was generated in the constructor `PageBuilder::new()`.
+        let mut body_node = unsafe { html.get_unchecked_mut(self.body_id) };
+        body_node.append_subtree(body.tree);
 
         // Serialize document tree
-        html.html()
+        Ok(Html {
+            errors: Vec::new(),
+            quirks_mode: QuirksMode::NoQuirks,
+            tree: html,
+        }
+        .html())
     }
 }
 

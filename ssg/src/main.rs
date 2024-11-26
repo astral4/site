@@ -26,7 +26,9 @@ fn main() -> Result<()> {
         .and_then(|css| transform_css(&css).context("failed to minify site CSS"))?;
 
     write(config.output_dir.join(OUTPUT_SITE_CSS_FILE), css)
-        .context("failed to write site CSS to output ")?;
+        .context("failed to write site CSS to output destination")?;
+
+    let page_builder = PageBuilder::new(&config.name, &top_fonts);
 
     let mut slug_tracker = HashSet::new();
 
@@ -125,9 +127,9 @@ fn main() -> Result<()> {
             let mut article_body = String::with_capacity(article_text.len() * 3 / 2);
             push_html(&mut article_body, events.into_iter());
 
-            let article_html = PageBuilder::new(&article_body)
-                .context("failed to parse processed article body as valid HTML")?
-                .build_page(&article_frontmatter.title, &config.name, &top_fonts);
+            let article_html = page_builder
+                .build_page(&article_frontmatter.title, &article_body)
+                .context("failed to parse processed article body as valid HTML")?;
 
             let output_article_path = output_article_dir.join("index.html");
             write(&output_article_path, article_html).with_context(|| {
