@@ -10,17 +10,17 @@ use std::fs::{create_dir, create_dir_all, read_dir, read_to_string, write};
 const OUTPUT_CONTENT_DIR: &str = "writing/";
 
 fn main() -> Result<()> {
+    // Read configuration
     let config = Config::from_env().context("failed to read configuration file")?;
 
-    (|| {
-        create_dir_all(&config.output_dir).context("failed to create output directory")?;
-        create_dir(config.output_dir.join(OUTPUT_CSS_DIRECTORY))
-            .context("failed to create output CSS directory")?;
-        create_dir(config.output_dir.join(OUTPUT_CONTENT_DIR))
-            .context("failed to create output articles directory")
-    })()
-    .context("failed to create output directories")?;
+    // Create output directories
+    create_dir_all(&config.output_dir).context("failed to create output directory")?;
+    create_dir(config.output_dir.join(OUTPUT_CSS_DIRECTORY))
+        .context("failed to create output CSS directory")?;
+    create_dir(config.output_dir.join(OUTPUT_CONTENT_DIR))
+        .context("failed to create output articles directory")?;
 
+    // Process site CSS file
     let CssOutput { css, top_fonts } = read_to_string(&config.site_css_file)
         .context("failed to read site CSS file")
         .and_then(|css| transform_css(&css).context("failed to minify site CSS"))?;
@@ -28,15 +28,20 @@ fn main() -> Result<()> {
     write(config.output_dir.join(OUTPUT_SITE_CSS_FILE), css)
         .context("failed to write site CSS to output destination")?;
 
+    // Create page builder (template for every page)
     let page_builder = PageBuilder::new(&config.name, &top_fonts);
 
+    // Check for duplicate slugs from articles' frontmatter so every article has a unique output directory
     let mut slug_tracker = HashSet::new();
 
+    // Initialize syntax highlighter for article text
     let syntax_highlighter = SyntaxHighlighter::new();
 
+    // Initialize LaTeX-to-HTML converter for article text
     let latex_converter =
         LatexConverter::new().context("failed to initialize LaTeX-to-HTML converter")?;
 
+    // Process all articles
     for entry in
         read_dir(config.articles_dir).context("failed to start traversal of all articles")?
     {
@@ -49,12 +54,15 @@ fn main() -> Result<()> {
         let mut article_contains_math = false;
 
         (|| {
+            // Get article text
             let article_text = read_to_string(input_article_dir.join("index.md"))
                 .context("failed to read article text file")?;
 
+            // Parse frontmatter from article text
             let article_frontmatter = Frontmatter::from_text(&article_text)
                 .context("failed to read article frontmatter")?;
 
+            // Check for article slug collisions
             if !slug_tracker.insert(article_frontmatter.slug.clone()) {
                 return Err(anyhow!(
                     "duplicate article slug found: {}",
@@ -62,6 +70,7 @@ fn main() -> Result<()> {
                 ));
             }
 
+            // Create output article directory
             let output_article_dir = config
                 .output_dir
                 .join(OUTPUT_CONTENT_DIR)
@@ -74,6 +83,7 @@ fn main() -> Result<()> {
             let mut is_in_code_block = false;
             let mut code_language = None;
 
+            // Convert article from Markdown to HTML
             let events = parse_markdown(&article_text)
                 .map(|event| match event {
                     Event::Start(Tag::CodeBlock(ref kind)) => {
@@ -131,6 +141,7 @@ fn main() -> Result<()> {
                 .build_page(&article_frontmatter.title, &article_body)
                 .context("failed to parse processed article body as valid HTML")?;
 
+            // Write article HTML to a file in the output article directory
             let output_article_path = output_article_dir.join("index.html");
             write(&output_article_path, article_html).with_context(|| {
                 format!("failed to write article HTML to {output_article_path:?}")
