@@ -1,7 +1,7 @@
 //! Code for reading app configuration from a TOML file. The configuration file path is supplied via the command line.
 
 use anyhow::{anyhow, Context, Result};
-use same_file::Handle;
+use same_file::is_same_file;
 use serde::Deserialize;
 use std::{env::args, fs::read_to_string, path::Path};
 use toml_edit::de::from_str as toml_from_str;
@@ -10,15 +10,21 @@ use toml_edit::de::from_str as toml_from_str;
 pub struct Config {
     // Your full name
     pub name: Box<str>,
-    // Path to directory of all articles
-    pub articles_dir: Box<Path>,
-    // Path to directory of all webpage body files;
-    // meant for non-article pages like the site index and the "about" page
-    pub body_dir: Box<Path>,
-    // Path to site-wide CSS file
-    pub site_css_file: Box<Path>,
     // Path to directory for generated site output
     pub output_dir: Box<Path>,
+    // Path to site-wide CSS file
+    pub site_css_file: Box<Path>,
+    // List of titles and paths for all webpage fragment files;
+    // for non-article pages like the site index and the "about" page
+    pub fragments: Box<[Fragment]>,
+    // Path to directory of all articles
+    pub articles_dir: Box<Path>,
+}
+
+#[derive(Deserialize)]
+pub struct Fragment {
+    pub title: Box<str>,
+    pub path: Box<Path>,
 }
 
 impl Config {
@@ -56,39 +62,31 @@ impl Config {
     }
 
     fn check_paths(&self) -> Result<()> {
+        for fragment in &self.fragments {
+            if !fragment.path.is_file() {
+                return Err(anyhow!(
+                    "`fragments_dir`: {:?} does not point to a file",
+                    fragment.path
+                ));
+            }
+        }
+
         if !self.articles_dir.is_dir() {
             Err(anyhow!(
                 "`articles_dir`: {:?} does not point to a directory",
                 self.articles_dir
-            ))
-        } else if !self.body_dir.is_dir() {
-            Err(anyhow!(
-                "`body_dir`: {:?} does not point to a directory",
-                self.body_dir
             ))
         } else if !self.site_css_file.is_file() {
             Err(anyhow!(
                 "`site_css_file`: {:?} does not point to a file",
                 self.site_css_file
             ))
+        } else if is_same_file(&self.output_dir, &self.articles_dir).unwrap() {
+            Err(anyhow!(
+                "`output_dir` and `articles_dir` point to the same location"
+            ))
         } else {
-            let output_dir = get_handle(&self.output_dir)?;
-            if output_dir == get_handle(&self.articles_dir)? {
-                Err(anyhow!(
-                    "`output_dir` and `articles_dir` point to the same location"
-                ))
-            } else if output_dir == get_handle(&self.body_dir)? {
-                Err(anyhow!(
-                    "`output_dir` and `body_dir` point to the same location"
-                ))
-            } else {
-                Ok(())
-            }
+            Ok(())
         }
     }
-}
-
-fn get_handle<P: AsRef<Path>>(path: P) -> Result<Handle> {
-    Handle::from_path(&path)
-        .with_context(|| format!("failed to open directory at {:?}", path.as_ref()))
 }
