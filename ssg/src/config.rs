@@ -4,7 +4,7 @@ use anyhow::{anyhow, Context, Result};
 use foldhash::{HashSet, HashSetExt};
 use same_file::is_same_file;
 use serde::Deserialize;
-use std::{env::args, fs::read_to_string, path::Path};
+use std::{env::args, ffi::OsStr, fs::read_to_string, path::Path};
 use toml_edit::de::from_str as toml_from_str;
 
 #[derive(Deserialize)]
@@ -71,6 +71,9 @@ impl Config {
                     "`fragments`: {:?} does not point to a file",
                     fragment.path
                 ));
+            }
+            if fragment.path.file_stem().is_none_or(OsStr::is_empty) {
+                return Err(anyhow!("`fragments`: empty file name found"));
             }
             if !fragment_paths.insert(&fragment.path) {
                 return Err(anyhow!("`fragments`: duplicate fragment paths found"));

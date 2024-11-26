@@ -46,7 +46,7 @@ fn main() -> Result<()> {
             // Write page HTML to a file in the output directory
             let output_path = config
                 .output_dir
-                .join(&fragment.path)
+                .join(fragment.path.file_name().unwrap()) // File stem is guaranteed to be Some(_) from `Config::from_env()`
                 .with_extension("html");
 
             write(&output_path, html)
