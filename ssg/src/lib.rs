@@ -16,7 +16,8 @@ pub use latex::{LatexConverter, RenderMode};
 
 use pulldown_cmark::{Event, Options, Parser, TextMergeStream};
 
-pub const OUTPUT_SITE_CSS_FILE: &str = "/site.css";
+pub const OUTPUT_CSS_DIRECTORY: &str = "/stylesheets/";
+pub const OUTPUT_SITE_CSS_FILE: &str = "/stylesheets/site.css";
 
 /// Parses the input string as Markdown, returning an iterator of Markdown parsing events.
 /// The parser recognizes the following extensions to the CommonMark standard:

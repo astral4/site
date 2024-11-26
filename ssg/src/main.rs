@@ -2,15 +2,29 @@ use anyhow::{anyhow, Context, Result};
 use foldhash::{HashSet, HashSetExt};
 use pulldown_cmark::{html::push_html, CodeBlockKind, Event, Tag, TagEnd};
 use ssg::{
-    parse_markdown, process_image, Config, Frontmatter, LatexConverter, PageBuilder, RenderMode,
-    SyntaxHighlighter,
+    parse_markdown, process_image, transform_css, Config, CssOutput, Frontmatter, LatexConverter,
+    PageBuilder, RenderMode, SyntaxHighlighter, OUTPUT_CSS_DIRECTORY, OUTPUT_SITE_CSS_FILE,
 };
-use std::fs::{create_dir_all, read_dir, read_to_string, write};
+use std::fs::{create_dir, create_dir_all, read_dir, read_to_string, write};
 
 const OUTPUT_CONTENT_DIR: &str = "writing/";
 
 fn main() -> Result<()> {
     let config = Config::from_env().context("failed to read configuration file")?;
+
+    (|| {
+        create_dir_all(&config.output_dir).context("failed to create output directory")?;
+        create_dir(config.output_dir.join(OUTPUT_CSS_DIRECTORY))
+            .context("failed to create output CSS directory")
+    })()
+    .context("failed to create output directories")?;
+
+    let CssOutput { css, top_fonts } = read_to_string(&config.site_css_file)
+        .context("failed to read site CSS file")
+        .and_then(|css| transform_css(&css).context("failed to minify site CSS"))?;
+
+    write(config.output_dir.join(OUTPUT_SITE_CSS_FILE), css)
+        .context("failed to write site CSS to output ")?;
 
     let mut slug_tracker = HashSet::new();
 
