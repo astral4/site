@@ -79,7 +79,7 @@ pub fn transform_css(source: &str) -> Result<CssOutput> {
         .code;
 
     // Find the highest-priority source for each font used by the stylesheet
-    let fonts = stylesheet
+    let top_fonts = stylesheet
         .rules
         .0
         .into_iter()
@@ -108,18 +108,15 @@ pub fn transform_css(source: &str) -> Result<CssOutput> {
                 _ => None,
             }),
         })
-        .collect::<Vec<_>>();
+        .collect();
 
-    Ok(CssOutput {
-        css,
-        top_fonts: (!fonts.is_empty()).then_some(fonts),
-    })
+    Ok(CssOutput { css, top_fonts })
 }
 
 #[cfg_attr(test, derive(Debug, PartialEq))]
 pub struct CssOutput {
     pub css: String,
-    pub top_fonts: Option<Vec<Font>>,
+    pub top_fonts: Vec<Font>,
 }
 
 #[cfg_attr(test, derive(Debug, PartialEq))]
@@ -138,7 +135,7 @@ mod test {
             transform_css("p { font-size: 1em }").expect("CSS transformation should succeed"),
             CssOutput {
                 css: "p{font-size:1em}".into(),
-                top_fonts: None
+                top_fonts: vec![]
             }
         );
 
@@ -147,10 +144,10 @@ mod test {
                 .expect("CSS transformation should succeed"),
             CssOutput {
                 css: "@font-face{src:url(foo.bin)format(\"woff2\")}".into(),
-                top_fonts: Some(vec![Font {
+                top_fonts: vec![Font {
                     path: "foo.bin".into(),
                     mime: Some("font/woff2")
-                }])
+                }]
             }
         );
 
@@ -159,13 +156,13 @@ mod test {
                 .expect("CSS transformation should succeed"),
             CssOutput {
                 css: "@font-face{src:url(foo.bin)format(\"woff\"),url(bar.bin)format(\"ttf\")}@font-face{src:url(baz.bin)}".into(),
-                top_fonts: Some(vec![Font {
+                top_fonts: vec![Font {
                     path: "foo.bin".into(),
                     mime: Some("font/woff")
                 }, Font {
                     path: "baz.bin".into(),
                     mime: None
-                }])
+                }]
             }
         );
     }

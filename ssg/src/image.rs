@@ -23,7 +23,7 @@ pub fn process_image(
     output_article_dir: &Path,
     image_path: &str,
     alt_text: &str,
-    id: Option<&str>,
+    id: &str,
 ) -> Result<String> {
     if image_path.is_empty() {
         return Err(anyhow!("no source provided for image"));
@@ -65,8 +65,9 @@ pub fn process_image(
             .with_context(|| format!("failed to write image to {output_path:?}"))?;
     }
 
-    Ok(match id {
-        Some(id) => format!("<img src=\"{image_path}\" alt=\"{alt_text}\" width=\"{width}\" height=\"{height}\" decoding=\"async\" loading=\"lazy\" id=\"{id}\">"),
-        None => format!("<img src=\"{image_path}\" alt=\"{alt_text}\" width=\"{width}\" height=\"{height}\" decoding=\"async\" loading=\"lazy\">")
+    Ok(if id.is_empty() {
+        format!("<img src=\"{image_path}\" alt=\"{alt_text}\" width=\"{width}\" height=\"{height}\" decoding=\"async\" loading=\"lazy\">")
+    } else {
+        format!("<img src=\"{image_path}\" alt=\"{alt_text}\" width=\"{width}\" height=\"{height}\" decoding=\"async\" loading=\"lazy\" id=\"{id}\">")
     })
 }

@@ -84,7 +84,7 @@ fn main() -> Result<()> {
                         &output_article_dir,
                         &dest_url,
                         &title,
-                        (!id.is_empty()).then_some(&id),
+                        &id,
                     )
                     .context("failed to process image")
                     .map(|html| Event::InlineHtml(html.into())),
