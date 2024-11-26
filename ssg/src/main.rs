@@ -15,7 +15,9 @@ fn main() -> Result<()> {
     (|| {
         create_dir_all(&config.output_dir).context("failed to create output directory")?;
         create_dir(config.output_dir.join(OUTPUT_CSS_DIRECTORY))
-            .context("failed to create output CSS directory")
+            .context("failed to create output CSS directory")?;
+        create_dir(config.output_dir.join(OUTPUT_CONTENT_DIR))
+            .context("failed to create output articles directory")
     })()
     .context("failed to create output directories")?;
 
@@ -63,7 +65,7 @@ fn main() -> Result<()> {
                 .join(OUTPUT_CONTENT_DIR)
                 .join(&*article_frontmatter.slug);
 
-            create_dir_all(&output_article_dir).with_context(|| {
+            create_dir(&output_article_dir).with_context(|| {
                 format!("failed to create output article directory at {output_article_dir:?}")
             })?;
 
