@@ -25,6 +25,11 @@ impl LatexConverter {
     /// - evaluating the KaTeX source code fails
     pub fn new() -> Result<Self> {
         let runtime = Runtime::new().context("failed to initialize JS runtime")?;
+
+        // Increase the stack size to 2 MiB; the default of 256 KiB is not enough
+        // for KaTeX to process non-trivial math expressions
+        runtime.set_max_stack_size(2 * 1024 * 1024);
+
         let context = Context::full(&runtime).context("failed to initialize JS runtime context")?;
 
         // When using KaTeX normally (i.e. in a browser or a runtime like Node.js),
@@ -92,7 +97,7 @@ mod test {
     use super::{LatexConverter, RenderMode};
 
     #[test]
-    fn latex_to_html() {
+    fn inline_display_comparison() {
         let converter = LatexConverter::new().expect("engine initialization should succeed");
 
         let inline_html = converter
@@ -114,5 +119,64 @@ mod test {
                 .is_err(),
             "conversion should fail on invalid LaTeX"
         );
+    }
+
+    #[test]
+    fn invalid_latex() {
+        assert!(
+            LatexConverter::new()
+                .expect("engine initialization should succeed")
+                .latex_to_html("\\frac{", RenderMode::Inline)
+                .is_err(),
+            "conversion should fail on invalid LaTeX"
+        );
+    }
+
+    #[test]
+    fn sufficient_stack_size() {
+        let converter = LatexConverter::new().expect("engine initialization should succeed");
+
+        // Surprisingly, this is enough to exhaust the JavaScript runtime's default stack size of 256 KiB
+        converter
+            .latex_to_html("\\frac{1}{2}", RenderMode::Inline)
+            .unwrap();
+
+        converter
+            .latex_to_html(
+                r"\begin{align}
+(\tan(x))'
+&= (\tfrac{\sin(x)}{\cos(x)})' \\
+&= \tfrac{\cos(x)\cdot\cos(x)-\sin(x)\cdot(-\sin(x))}{\cos^2(x)} \\
+&= \tfrac{\cos^2(x)+\sin^2(x)}{\cos^2(x)} \\
+&= \tfrac{1}{\cos^2(x)} \\\\
+f(x) &= \tan^{-1}(x) \\
+\tan(f(x)) &= x \\
+(\tan(f(x)))' &= 1 \\
+\tfrac{1}{\cos^2(f(x))}\cdot f'(x) &= 1 \\
+f'(x)
+&= \cos^2(f(x)) \\
+&= \tfrac{1}{\tfrac{1}{\cos^2(f(x))}} \\
+&= \tfrac{1}{\tfrac{\sin^2(f(x))+\cos^2(f(x))}{\cos^2(f(x))}} \\
+&= \tfrac{1}{\tan^2(f(x))+1} \\
+&= \tfrac{1}{x^2+1} \\\\
+\int\tan^{-1}(x)~dx
+&= \int\tan^{-1}(x)\cdot(x)'~dx \\
+&= x\tan^{-1}x-\int x\cdot(\tan^{-1}(x))'~dx+C \\
+&= x\tan^{-1}x-\int x\cdot\tfrac{1}{x^2+1}~dx+C \\
+&= x\tan^{-1}x-\int\tfrac{1}{2}\cdot\tfrac{1}{u}~du+C \\
+&= x\tan^{-1}x-\tfrac{1}{2}\ln(u)+C \\
+&= x\tan^{-1}x-\tfrac{1}{2}\ln(x^2+1)+C
+\end{align}",
+                RenderMode::Display,
+            )
+            .unwrap();
+
+        // Even further nesting causes the test thread's stack to overflow
+        converter
+            .latex_to_html(
+                &format!("{}2{}", "\\frac{1}{".repeat(10), "}".repeat(10)),
+                RenderMode::Inline,
+            )
+            .unwrap();
     }
 }
