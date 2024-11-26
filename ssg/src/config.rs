@@ -1,6 +1,7 @@
 //! Code for reading app configuration from a TOML file. The configuration file path is supplied via the command line.
 
 use anyhow::{anyhow, Context, Result};
+use foldhash::{HashSet, HashSetExt};
 use same_file::is_same_file;
 use serde::Deserialize;
 use std::{env::args, fs::read_to_string, path::Path};
@@ -62,12 +63,17 @@ impl Config {
     }
 
     fn check_paths(&self) -> Result<()> {
+        let mut fragment_paths = HashSet::with_capacity(self.fragments.len());
+
         for fragment in &self.fragments {
             if !fragment.path.is_file() {
                 return Err(anyhow!(
-                    "`fragments_dir`: {:?} does not point to a file",
+                    "`fragments`: {:?} does not point to a file",
                     fragment.path
                 ));
+            }
+            if !fragment_paths.insert(&fragment.path) {
+                return Err(anyhow!("`fragments`: duplicate fragment paths found"));
             }
         }
 
