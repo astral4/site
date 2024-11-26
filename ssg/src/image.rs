@@ -11,6 +11,7 @@ use std::{
 /// Processes an image link by converting the linked image to AVIF and saving it to an output path.
 /// This function outputs a string containing an HTML <img> element
 /// with `src`, `alt`, dimension, and rendering attributes.
+/// If the provided `id` is not empty, an `id` attribute is also added.
 ///
 /// # Errors
 /// This function returns an error if:
