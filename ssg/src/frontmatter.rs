@@ -76,55 +76,53 @@ mod test {
     use jiff::civil::date;
 
     #[test]
-    fn frontmatter() {
-        const BAD_1: &str = "abc123";
-        const BAD_2: &str = "---\ntitle: abc\n---";
-        const BAD_3: &str = "---\ntitle: abc\nslug: def\ncreated: 123xyz\nupdated: 123xyz\n---";
-        const BAD_4: &str = "---\ntitle: \nslug: \ncreated: 2000-01-01\n---";
-        const BAD_5: &str = "---\ntitle: abc\nslug: def\ncreated: 2000-02-30\n---";
-        const BAD_6: &str =
-            "---\ntitle: abc\nslug: def\ncreated: 2000-01-01\nupdated: 1900-01-01\n---";
-        const BAD_7: &str =
-            "---\ntitle: abc\nslug: def\ncreated: 2000-01-01T00:00Z\nupdated: 2000-01-01T00:00-01:00\n---";
+    fn missing_frontmatter() {
+        // Parsing should fail if frontmatter is absent
+        assert!(Frontmatter::from_text("abc123").is_err());
+    }
 
-        const GOOD_1: &str = "---\ntitle: abc\nslug: def\ncreated: 2000-01-01\n---";
-        const GOOD_2: &str =
-            "---\ntitle: abc\nslug: def\ncreated: 2000-01-01\nupdated: 2000-01-01\n---";
-        const GOOD_3: &str =
-            "---\ntitle: abc\nslug: def\ncreated: 2000-01-01\nupdated: 2000-01-02\n---";
-        const GOOD_4: &str =
-            "---\ntitle: abc\nslug: def\ncreated: 2000-01-01T01:00\nupdated: 2000-01-01T00:00\n---";
+    #[test]
+    fn missing_fields() {
+        // Parsing should fail if not all frontmatter fields are present
+        assert!(Frontmatter::from_text("---\ntitle: abc\n---").is_err());
+        assert!(
+            Frontmatter::from_text("---\ntitle: abc\nslug: def\nupdated: 2000-01-01\n---").is_err()
+        );
+    }
 
+    #[test]
+    fn empty_fields() {
+        // Parsing should fail if title or slug are empty
+        assert!(Frontmatter::from_text("---\ntitle: \nslug: \ncreated: 2000-01-01\n---").is_err());
         assert!(
-            Frontmatter::from_text(BAD_1).is_err(),
-            "parsing should fail if frontmatter is absent"
+            Frontmatter::from_text("---\ntitle:  \nslug:  \ncreated: 2000-01-01\n---").is_err()
         );
+    }
+
+    #[test]
+    fn invalid_date() {
+        // Parsing should fail if date fields are invalid
         assert!(
-            Frontmatter::from_text(BAD_2).is_err(),
-            "parsing should fail if not all frontmatter fields are present"
+            Frontmatter::from_text("---\ntitle: abc\nslug: def\ncreated: 123xyz\n---").is_err()
         );
+        assert!(Frontmatter::from_text(
+            "---\ntitle: abc\nslug: def\ncreated: 2020-01-01\nupdated: 123xyz\n---"
+        )
+        .is_err());
+        assert!(Frontmatter::from_text(
+            "---\ntitle: abc\nslug: def\ncreated: 123xyz\nupdated: 123xyz\n---"
+        )
+        .is_err());
         assert!(
-            Frontmatter::from_text(BAD_3).is_err(),
-            "parsing should fail if date fields are invalid"
+            Frontmatter::from_text("---\ntitle: abc\nslug: def\ncreated: 2000-02-30\n---").is_err()
         );
-        assert!(
-            Frontmatter::from_text(BAD_4).is_err(),
-            "parsing should fail if title or slug are empty"
-        );
-        assert!(
-            Frontmatter::from_text(BAD_5).is_err(),
-            "parsing should fail if a date is invalid"
-        );
-        assert!(
-            Frontmatter::from_text(BAD_6).is_err(),
-            "parsing should fail if the last-updated date precedes the creation date"
-        );
-        assert!(
-            Frontmatter::from_text(BAD_7).is_err(),
-            "timezone parsing is not supported"
-        );
+    }
+
+    #[test]
+    fn no_update_field() {
         assert_eq!(
-            Frontmatter::from_text(GOOD_1).expect("parsing should succeed"),
+            Frontmatter::from_text("---\ntitle: abc\nslug: def\ncreated: 2000-01-01\n---")
+                .expect("parsing should succeed"),
             Frontmatter {
                 title: "abc".into(),
                 slug: "def".into(),
@@ -132,8 +130,20 @@ mod test {
                 updated: None
             }
         );
+    }
+
+    #[test]
+    fn update_after_create() {
+        // Parsing should fail if the last-updated date precedes the creation date
+        assert!(Frontmatter::from_text(
+            "---\ntitle: abc\nslug: def\ncreated: 2000-01-01\nupdated: 1900-01-01\n---"
+        )
+        .is_err());
         assert_eq!(
-            Frontmatter::from_text(GOOD_2).expect("parsing should succeed"),
+            Frontmatter::from_text(
+                "---\ntitle: abc\nslug: def\ncreated: 2000-01-01\nupdated: 2000-01-01\n---"
+            )
+            .expect("parsing should succeed"),
             Frontmatter {
                 title: "abc".into(),
                 slug: "def".into(),
@@ -141,12 +151,36 @@ mod test {
                 updated: Some(date(2000, 1, 1))
             }
         );
-        assert!(
-            Frontmatter::from_text(GOOD_3).is_ok(),
-            "parsing should succeed"
-        );
         assert_eq!(
-            Frontmatter::from_text(GOOD_4).expect("parsing should succeed due to ignoring dates"),
+            Frontmatter::from_text(
+                "---\ntitle: abc\nslug: def\ncreated: 2000-01-01\nupdated: 2000-01-02\n---"
+            )
+            .expect("parsing should succeed"),
+            Frontmatter {
+                title: "abc".into(),
+                slug: "def".into(),
+                created: date(2000, 1, 1),
+                updated: Some(date(2000, 1, 2))
+            }
+        );
+    }
+
+    #[test]
+    fn timezones() {
+        // Parsing timezones from date fields is not supported
+        assert!(Frontmatter::from_text(
+            "---\ntitle: abc\nslug: def\ncreated: 2000-01-01T00:00Z\nupdated: 2000-01-02T00:00-01:00\n---"
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn ignore_times() {
+        // When times are included in the date fields, we expect the parser
+        // to recognize but ignore them when producing a date output.
+        assert_eq!(
+            Frontmatter::from_text("---\ntitle: abc\nslug: def\ncreated: 2000-01-01T01:00\nupdated: 2000-01-01T00:00\n---")
+                .expect("parsing should succeed"),
             Frontmatter {
                 title: "abc".into(),
                 slug: "def".into(),

@@ -15,7 +15,7 @@ use std::collections::HashSet;
 
 /// Parses the input string as CSS. This function returns:
 /// - minified CSS compatible with a set of "reasonable" target browser versions
-/// - a list of font dependencies (highest-priority sources only) if they exist
+/// - a list of font dependencies (highest-priority sources only)
 ///
 /// # Errors
 /// This function returns an error if:
@@ -130,7 +130,7 @@ mod test {
     use super::{transform_css, CssOutput, Font};
 
     #[test]
-    fn transform() {
+    fn no_fonts() {
         assert_eq!(
             transform_css("p { font-size: 1em }").expect("CSS transformation should succeed"),
             CssOutput {
@@ -138,7 +138,10 @@ mod test {
                 top_fonts: vec![]
             }
         );
+    }
 
+    #[test]
+    fn one_font() {
         assert_eq!(
             transform_css("@font-face { src: url('foo.bin') format('woff2'); }")
                 .expect("CSS transformation should succeed"),
@@ -150,7 +153,10 @@ mod test {
                 }]
             }
         );
+    }
 
+    #[test]
+    fn multiple_fonts() {
         assert_eq!(
             transform_css("@font-face { src: url('foo.bin') format('woff'), url('bar.bin') format('ttf'); } @font-face { src: url('baz.bin'); }")
                 .expect("CSS transformation should succeed"),

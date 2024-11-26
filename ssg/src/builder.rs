@@ -116,58 +116,61 @@ mod test {
 
     #[test]
     fn create_element() {
-        // non-void element
+        // Non-void element
         assert_eq_serialized(create_el("p"), "<p></p>");
 
-        // void element
+        // Void element
         assert_eq_serialized(create_el("img"), "<img>");
     }
 
     #[test]
     fn create_element_with_attrs() {
-        // element with empty attribute name and value
-        assert_eq_serialized(create_el_with_attrs("p", [("", "")]), "<p =\"\"></p>");
-
-        // element with empty attribute name
-        assert_eq_serialized(create_el_with_attrs("p", [("", "abc")]), "<p =\"abc\"></p>");
-
-        // element with empty attribute value
-        assert_eq_serialized(create_el_with_attrs("p", [("id", "")]), "<p id=\"\"></p>");
-
-        // non-void element with single attribute
+        // Non-void element with single attribute
         assert_eq_serialized(
             create_el_with_attrs("p", [("id", "abc")]),
             "<p id=\"abc\"></p>",
         );
 
-        // non-void element with multiple attributes
+        // Non-void element with multiple attributes
         assert_eq_serialized(
             create_el_with_attrs("p", [("id", "abc"), ("class", "def")]),
             "<p id=\"abc\" class=\"def\"></p>",
         );
 
-        // void element with single attribute
+        // Void element with single attribute
         assert_eq_serialized(
             create_el_with_attrs("img", [("id", "abc")]),
             "<img id=\"abc\">",
         );
 
-        // void element with multiple attributes
+        // Void element with multiple attributes
         assert_eq_serialized(
             create_el_with_attrs("img", [("id", "abc"), ("class", "def")]),
             "<img id=\"abc\" class=\"def\">",
         );
     }
 
-    #[should_panic]
     #[test]
+    fn create_element_with_empty_attrs() {
+        // Element with empty attribute name and value
+        assert_eq_serialized(create_el_with_attrs("p", [("", "")]), "<p =\"\"></p>");
+
+        // Element with empty attribute name
+        assert_eq_serialized(create_el_with_attrs("p", [("", "abc")]), "<p =\"abc\"></p>");
+
+        // Element with empty attribute value
+        assert_eq_serialized(create_el_with_attrs("p", [("id", "")]), "<p id=\"\"></p>");
+    }
+
+    #[test]
+    #[should_panic]
     fn create_nonexistent_element() {
         // "_" should be an invalid element name
         create_el("_");
     }
 
-    #[should_panic]
     #[test]
+    #[should_panic]
     fn create_element_with_nonexistent_attrs() {
         // "_" should be an invalid attribute name
         create_el_with_attrs("p", [("_", "abc")]);
