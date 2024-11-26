@@ -56,33 +56,39 @@ mod test {
     use super::SyntaxHighlighter;
 
     #[test]
-    fn syntax_highlighting() {
-        let highlighter = SyntaxHighlighter::new();
+    fn plaintext() {
+        SyntaxHighlighter::new()
+            .highlight("abc123", None)
+            .expect("highlighting should succeed");
+    }
 
+    #[test]
+    fn extension_based_syntax_detection() {
+        SyntaxHighlighter::new()
+            .highlight("const FOO: usize = 42;", Some("rs"))
+            .expect("highlighting should succeed");
+    }
+
+    #[test]
+    fn name_based_syntax_detection() {
+        SyntaxHighlighter::new()
+            .highlight("const FOO: usize = 42;", Some("rust"))
+            .expect("highlighting should succeed");
+    }
+
+    #[test]
+    fn invalid_syntax() {
+        SyntaxHighlighter::new()
+            .highlight("constant foo u0 = \"abc", Some("rust"))
+            .expect("highlighting should succeed");
+    }
+
+    #[test]
+    fn nonexistent_language() {
         assert!(
-            highlighter.highlight("abc123", None).is_ok(),
-            "plaintext highlighting should succeed"
-        );
-        assert!(
-            highlighter
-                .highlight("const FOO: usize = 42;", Some("rs"))
-                .is_ok(),
-            "extension-based syntax detection and highlighting should succeed"
-        );
-        assert!(
-            highlighter
-                .highlight("const FOO: usize = 42;", Some("rust"))
-                .is_ok(),
-            "name-based syntax detection and highlighting should succeed"
-        );
-        assert!(
-            highlighter
-                .highlight("constant foo u0 = \"abc", Some("rust"))
-                .is_ok(),
-            "highlighting should succeed for invalid syntax"
-        );
-        assert!(
-            highlighter.highlight("", Some("klingon")).is_err(),
+            SyntaxHighlighter::new()
+                .highlight("", Some("klingon"))
+                .is_err(),
             "syntax detection for non-existent language should fail"
         );
     }
