@@ -2047,7 +2047,6 @@ dependencies = [
  "markup5ever",
  "pulldown-cmark",
  "rquickjs",
- "same-file",
  "scraper",
  "serde",
  "syntect",

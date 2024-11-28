@@ -2,7 +2,6 @@
 
 use anyhow::{anyhow, Context, Result};
 use foldhash::{HashSet, HashSetExt};
-use same_file::is_same_file;
 use serde::Deserialize;
 use std::{env::args, ffi::OsStr, fs::read_to_string, path::Path};
 use toml_edit::de::from_str as toml_from_str;
@@ -65,24 +64,12 @@ impl Config {
     }
 
     fn check_paths(&self) -> Result<()> {
-        let mut fragment_paths = HashSet::with_capacity(self.fragments.len());
-
-        for fragment in &self.fragments {
-            if !fragment.path.is_file() {
-                return Err(anyhow!(
-                    "`fragments`: {:?} does not point to a file",
-                    fragment.path
-                ));
-            }
-            if fragment.path.file_stem().is_none_or(OsStr::is_empty) {
-                return Err(anyhow!("`fragments`: empty file name found"));
-            }
-            if !fragment_paths.insert(&fragment.path) {
-                return Err(anyhow!("`fragments`: duplicate fragment paths found"));
-            }
-        }
-
-        if !self.articles_dir.is_dir() {
+        if self.output_dir.is_dir() {
+            Err(anyhow!(
+                "`output_dir`: {:?} already exists as a directory",
+                self.output_dir
+            ))
+        } else if !self.articles_dir.is_dir() {
             Err(anyhow!(
                 "`articles_dir`: {:?} does not point to a directory",
                 self.articles_dir
@@ -97,11 +84,24 @@ impl Config {
                 "`template_html_file`: {:?} does not point to a file",
                 self.template_html_file
             ))
-        } else if is_same_file(&self.output_dir, &self.articles_dir).unwrap() {
-            Err(anyhow!(
-                "`output_dir` and `articles_dir` point to the same location"
-            ))
         } else {
+            let mut fragment_paths = HashSet::with_capacity(self.fragments.len());
+
+            for fragment in &self.fragments {
+                if !fragment.path.is_file() {
+                    return Err(anyhow!(
+                        "`fragments`: {:?} does not point to a file",
+                        fragment.path
+                    ));
+                }
+                if fragment.path.file_stem().is_none_or(OsStr::is_empty) {
+                    return Err(anyhow!("`fragments`: empty file name found"));
+                }
+                if !fragment_paths.insert(&fragment.path) {
+                    return Err(anyhow!("`fragments`: duplicate fragment paths found"));
+                }
+            }
+
             Ok(())
         }
     }
