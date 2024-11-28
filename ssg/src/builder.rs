@@ -1,8 +1,8 @@
 //! Code for building complete HTML pages from article bodies.
 
 use crate::{css::Font, OUTPUT_SITE_CSS_FILE};
-use anyhow::{Error, Result};
-use ego_tree::{tree, NodeId, Tree};
+use anyhow::{anyhow, Error, Result};
+use ego_tree::{tree, NodeId, NodeMut, Tree};
 use markup5ever::{interface::QuirksMode, namespace_url, ns, Attribute, LocalName, QualName};
 use scraper::{
     node::{Doctype, Element, Node, Text},
@@ -10,17 +10,32 @@ use scraper::{
 };
 
 pub struct PageBuilder {
-    template_html: Tree<Node>,
+    html: Tree<Node>,
     head_id: NodeId,
-    body_id: NodeId,
+    slot_id: NodeId,
 }
 
 impl PageBuilder {
     /// Initializes a webpage HTML builder. Every page built:
     /// - includes the provided author as a metadata tag
-    /// - specifies preloaded fonts based on the provided list of font sources.
-    #[must_use]
-    pub fn new(author: &str, site_fonts: &[Font]) -> Self {
+    /// - specifies preloaded fonts based on the provided list of font sources
+    /// - has a `<body>` structure based on the provided template
+    ///
+    /// # Errors
+    /// This function returns an error if:
+    /// - the input template cannot be successfully parsed as no-quirks HTML
+    /// - the input template does not contain a `<main>` element for slotting page content
+    pub fn new(author: &str, site_fonts: &[Font], template: &str) -> Result<Self> {
+        // Parse template into tree of HTML nodes
+        let template = Html::parse_fragment(template);
+
+        // `Html::parse_fragment()` doesn't return a `Result` because
+        // the parser is supposed to be resilient and fall back to HTML quirks mode upon encountering errors.
+        // So, after parsing, we have to check for any errors encountered ourselves.
+        if let Some(err) = template.errors.first() {
+            return Err(Error::msg(err.clone()).context("failed to parse input as valid HTML"));
+        }
+
         let mut html = Html::new_document();
         let mut root_node = html.tree.root_mut();
 
@@ -63,13 +78,31 @@ impl PageBuilder {
         }
 
         let head_id = head_el_node.id();
-        let body_id = html_el_node.append(create_el("body")).id();
 
-        Self {
-            template_html: html.tree,
+        // Add `<body>` within `<html>`
+        let mut body_el_node = html_el_node.append(create_el("body"));
+
+        // Add template within `<body>`
+        append_fragment(&mut body_el_node, template);
+
+        // Find element in template for slotting page content
+        // We search in reverse insertion order because the template's HTML nodes were inserted last.
+        let Some(slot_id) = html.tree.nodes().rev().find_map(|node| {
+            node.value()
+                .as_element()
+                .is_some_and(|el| el.name() == "main") // "We have components at home"
+                .then(|| node.id())
+        }) else {
+            return Err(anyhow!(
+                "template does not have a `<main>` element for slotting page content"
+            ));
+        };
+
+        Ok(Self {
+            html: html.tree,
             head_id,
-            body_id,
-        }
+            slot_id,
+        })
     }
 
     /// Outputs a string containing a complete HTML document based on the provided document title and body.
@@ -77,6 +110,7 @@ impl PageBuilder {
     /// # Errors
     /// This function returns an error if the input body cannot be successfully parsed as no-quirks HTML.
     pub fn build_page(&self, title: &str, body: &str) -> Result<String> {
+        // Parse body into tree of HTML nodes
         let body = Html::parse_fragment(body);
 
         // `Html::parse_fragment()` doesn't return a `Result` because
@@ -86,17 +120,19 @@ impl PageBuilder {
             return Err(Error::msg(err.clone()).context("failed to parse input as valid HTML"));
         }
 
-        let mut html = self.template_html.clone();
+        let mut html = self.html.clone();
 
-        // SAFETY: the ID is valid because it was generated in the constructor `PageBuilder::new()`.
+        // Add `<title>` within `<head>`
+        // SAFETY: The ID is valid because it was generated in the constructor `PageBuilder::new()`.
         let mut head_node = unsafe { html.get_unchecked_mut(self.head_id) };
         head_node.append_subtree(tree! {
             create_el("title") => { Node::Text(Text { text: title.into() }) }
         });
 
-        // SAFETY: the ID is valid because it was generated in the constructor `PageBuilder::new()`.
-        let mut body_node = unsafe { html.get_unchecked_mut(self.body_id) };
-        body_node.append_subtree(body.tree);
+        // Add page content within template slot
+        // SAFETY: The ID is valid because it was generated in the constructor `PageBuilder::new()`.
+        let mut slot_node = unsafe { html.get_unchecked_mut(self.slot_id) };
+        append_fragment(&mut slot_node, body);
 
         // Serialize document tree
         Ok(Html {
@@ -140,6 +176,20 @@ fn create_name(name: &str, kind: NameKind) -> QualName {
 enum NameKind {
     Element,
     Attr,
+}
+
+/// Appends the contents of `fragment` as children of the input `node`.
+fn append_fragment(node: &mut NodeMut<'_, Node>, fragment: Html) {
+    // Fragments have the following structure:
+    // Node::Fragment -> { Node::Element("html") -> { <contents> }}
+    // After appending the fragment's tree, we have to make the contents direct children of the node.
+    let mut fragment_root_node = node.append_subtree(fragment.tree);
+    let fragment_root_id = fragment_root_node.id();
+    let fragment_html_id = fragment_root_node.first_child().unwrap().id();
+    node.reparent_from_id_append(fragment_html_id);
+    // SAFETY: Indexing is guaranteed to be valid because
+    // the ID was obtained from appending the fragment as a subtree of a node from the tree.
+    unsafe { node.tree().get_unchecked_mut(fragment_root_id) }.detach();
 }
 
 #[cfg(test)]

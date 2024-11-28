@@ -28,8 +28,13 @@ fn main() -> Result<()> {
     write(config.output_dir.join(OUTPUT_SITE_CSS_FILE), css)
         .context("failed to write site CSS to output destination")?;
 
+    // Get site HTML template text
+    let template_text = read_to_string(config.template_html_file)
+        .context("failed to read site HTML template file")?;
+
     // Create page builder (template for every page)
-    let page_builder = PageBuilder::new(&config.name, &top_fonts);
+    let page_builder = PageBuilder::new(&config.name, &top_fonts, &template_text)
+        .context("failed to process site HTML template")?;
 
     // Process all fragment files
     for fragment in config.fragments {
