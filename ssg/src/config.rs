@@ -15,6 +15,8 @@ pub struct Config {
     pub output_dir: Box<Path>,
     // Path to site-wide CSS file
     pub site_css_file: Box<Path>,
+    // Path to site-wide template HTML file
+    pub template_html_file: Box<Path>,
     // List of titles and paths for all webpage fragment files;
     // for non-article pages like the site index and the "about" page
     pub fragments: Box<[Fragment]>,
@@ -89,6 +91,11 @@ impl Config {
             Err(anyhow!(
                 "`site_css_file`: {:?} does not point to a file",
                 self.site_css_file
+            ))
+        } else if !self.template_html_file.is_file() {
+            Err(anyhow!(
+                "`template_html_file`: {:?} does not point to a file",
+                self.template_html_file
             ))
         } else if is_same_file(&self.output_dir, &self.articles_dir).unwrap() {
             Err(anyhow!(
