@@ -1,5 +1,5 @@
 [workspace]
-members = ["ssg", "katex-dl"]
+members = ["katex-dl", "ssg"]
 resolver = "2"
 
 [workspace.package]
@@ -7,6 +7,7 @@ authors = ["Kyle Chen"]
 edition = "2021"
 repository = "https://github.com/astral4/site"
 license = "MIT OR Apache-2.0"
+publish = false
 
 [workspace.dependencies]
 anyhow = "1.0.93"
