@@ -4,8 +4,8 @@ use pulldown_cmark::{
     html::push_html, CodeBlockKind, Event, Options, Parser, Tag, TagEnd, TextMergeStream,
 };
 use ssg::{
-    process_image, transform_css, Config, CssOutput, Frontmatter, LatexConverter, PageBuilder,
-    RenderMode, SyntaxHighlighter, OUTPUT_CSS_DIRECTORY, OUTPUT_SITE_CSS_FILE,
+    process_image, save_math_assets, transform_css, Config, CssOutput, Frontmatter, LatexConverter,
+    PageBuilder, RenderMode, SyntaxHighlighter, OUTPUT_CSS_DIR, OUTPUT_SITE_CSS_FILE,
 };
 use std::fs::{create_dir, create_dir_all, read_dir, read_to_string, write};
 
@@ -17,7 +17,7 @@ fn main() -> Result<()> {
 
     // Create output directories
     create_dir_all(&config.output_dir).context("failed to create output directory")?;
-    create_dir(config.output_dir.join(OUTPUT_CSS_DIRECTORY))
+    create_dir(config.output_dir.join(OUTPUT_CSS_DIR))
         .context("failed to create output CSS directory")?;
     create_dir(config.output_dir.join(OUTPUT_CONTENT_DIR))
         .context("failed to create output articles directory")?;
@@ -29,6 +29,9 @@ fn main() -> Result<()> {
 
     write(config.output_dir.join(OUTPUT_SITE_CSS_FILE), css)
         .context("failed to write site CSS to output destination")?;
+
+    save_math_assets(&config.output_dir)
+        .context("failed to write math CSS to output destination")?;
 
     // Get site HTML template text
     let template_text = read_to_string(config.template_html_file)
