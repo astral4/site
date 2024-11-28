@@ -45,7 +45,7 @@ fn main() -> Result<()> {
 
             // Build complete page from fragment
             let html = page_builder
-                .build_page(&fragment.title, &fragment_text)
+                .build_page(&fragment.title, &fragment_text, false)
                 .context("failed to parse fragment as valid HTML")?;
 
             // Write page HTML to a file in the output directory
@@ -88,8 +88,6 @@ fn main() -> Result<()> {
             entry_path
         };
 
-        let mut article_contains_math = false;
-
         (|| {
             // Get article text
             let article_text = read_to_string(input_article_dir.join("index.md"))
@@ -119,6 +117,7 @@ fn main() -> Result<()> {
 
             let mut is_in_code_block = false;
             let mut code_language = None;
+            let mut contains_math = false;
 
             // Convert article from Markdown to HTML
             let events = parse_markdown(&article_text)
@@ -154,14 +153,14 @@ fn main() -> Result<()> {
                     .context("failed to process image")
                     .map(|html| Event::InlineHtml(html.into())),
                     Event::InlineMath(src) => {
-                        article_contains_math = true;
+                        contains_math = true;
                         latex_converter
                             .latex_to_html(&src, RenderMode::Inline)
                             .context("failed to convert LaTeX to HTML")
                             .map(|html| Event::InlineHtml(html.into()))
                     }
                     Event::DisplayMath(src) => {
-                        article_contains_math = true;
+                        contains_math = true;
                         latex_converter
                             .latex_to_html(&src, RenderMode::Display)
                             .context("failed to convert LaTeX to HTML")
@@ -175,7 +174,7 @@ fn main() -> Result<()> {
             push_html(&mut article_body, events.into_iter());
 
             let article_html = page_builder
-                .build_page(&article_frontmatter.title, &article_body)
+                .build_page(&article_frontmatter.title, &article_body, contains_math)
                 .context("failed to parse processed article body as valid HTML")?;
 
             // Write article HTML to a file in the output article directory

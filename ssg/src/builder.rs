@@ -9,6 +9,8 @@ use scraper::{
     Html,
 };
 
+const OUTPUT_KATEX_CSS_FILE: &str = "/stylesheets/katex.css";
+
 pub struct PageBuilder {
     html: Tree<Node>,
     head_id: NodeId,
@@ -109,7 +111,7 @@ impl PageBuilder {
     ///
     /// # Errors
     /// This function returns an error if the input body cannot be successfully parsed as no-quirks HTML.
-    pub fn build_page(&self, title: &str, body: &str) -> Result<String> {
+    pub fn build_page(&self, title: &str, body: &str, contains_math: bool) -> Result<String> {
         // Parse body into tree of HTML nodes
         let body = Html::parse_fragment(body);
 
@@ -125,6 +127,14 @@ impl PageBuilder {
         // Add `<title>` within `<head>`
         // SAFETY: The ID is valid because it was generated in the constructor `PageBuilder::new()`.
         let mut head_node = unsafe { html.get_unchecked_mut(self.head_id) };
+
+        if contains_math {
+            head_node.append(create_el_with_attrs(
+                "link",
+                &[("rel", "stylesheet"), ("href", OUTPUT_KATEX_CSS_FILE)],
+            ));
+        }
+
         head_node.append_subtree(tree! {
             create_el("title") => { Node::Text(Text { text: title.into() }) }
         });
