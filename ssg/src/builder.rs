@@ -15,6 +15,9 @@ pub struct PageBuilder {
     html: Tree<Node>,
     head_id: NodeId,
     slot_id: NodeId,
+    // [(selector, font-family); N]
+    // font-family (key) to path (value) hashmap
+    // query hashmap to get <link preload=...> attrs
 }
 
 impl PageBuilder {
