@@ -121,8 +121,8 @@ pub struct CssOutput {
 
 #[cfg_attr(test, derive(Debug, PartialEq))]
 pub struct Font {
-    pub path: Box<str>,
-    pub mime: Option<&'static str>,
+    pub(crate) path: Box<str>,
+    pub(crate) mime: Option<&'static str>,
 }
 
 #[cfg(test)]
