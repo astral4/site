@@ -1,6 +1,7 @@
 //! Code for reading app configuration from a TOML file. The configuration file path is supplied via the command line.
 
 use anyhow::{anyhow, Context, Result};
+use camino::Utf8Path;
 use foldhash::{HashSet, HashSetExt};
 use serde::Deserialize;
 use std::{env::args, ffi::OsStr, fs::read_to_string, path::Path};
@@ -19,8 +20,8 @@ pub struct Config {
     // List of titles and paths for all webpage fragment files;
     // for non-article pages like the site index and the "about" page
     pub fragments: Box<[Fragment]>,
-    // Path to directory of all articles
-    pub articles_dir: Box<Path>,
+    // Path to directory containing all articles
+    pub articles_dir: Box<Utf8Path>,
 }
 
 #[derive(Deserialize)]

@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Context, Result};
 use foldhash::{HashSet, HashSetExt};
+use glob::glob;
 use pulldown_cmark::{
     html::push_html, CodeBlockKind, Event, Options, Parser, Tag, TagEnd, TextMergeStream,
 };
@@ -7,7 +8,10 @@ use ssg::{
     process_image, save_math_assets, transform_css, Config, CssOutput, Frontmatter, LatexConverter,
     PageBuilder, RenderMode, SyntaxHighlighter, OUTPUT_CSS_DIR, OUTPUT_SITE_CSS_FILE,
 };
-use std::fs::{create_dir, create_dir_all, read_dir, read_to_string, write};
+use std::{
+    fs::{create_dir, create_dir_all, read_to_string, write},
+    path::PathBuf,
+};
 
 const OUTPUT_CONTENT_DIR: &str = "writing/";
 
@@ -77,14 +81,17 @@ fn main() -> Result<()> {
     let latex_converter =
         LatexConverter::new().context("failed to initialize LaTeX-to-HTML converter")?;
 
+    let article_match_pattern: PathBuf = [config.articles_dir.as_str(), "**", "index.md"]
+        .iter()
+        .collect();
+
     // Process all articles
     for entry in
-        read_dir(config.articles_dir).context("failed to start traversal of all articles")?
+        glob(article_match_pattern.to_str().unwrap()).expect("article glob pattern is valid")
     {
         let input_article_dir = {
-            let entry_path = entry
-                .context("failed to access entry in articles directory")?
-                .path();
+            let mut entry_path = entry.context("failed to access entry in articles directory")?;
+            entry_path.pop();
 
             if !entry_path.is_dir() {
                 continue;
