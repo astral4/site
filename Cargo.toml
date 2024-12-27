@@ -10,7 +10,7 @@ license = "MIT OR Apache-2.0"
 publish = false
 
 [workspace.dependencies]
-anyhow = "1.0.93"
+anyhow = "1.0.95"
 
 [workspace.lints.rust]
 async_fn_in_trait = "allow"
