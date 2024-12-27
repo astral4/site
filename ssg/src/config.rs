@@ -1,9 +1,10 @@
 //! Code for reading app configuration from a TOML file. The configuration file path is supplied via the command line.
 
 use anyhow::{anyhow, Context, Result};
+use camino::Utf8Path;
 use foldhash::{HashSet, HashSetExt};
 use serde::Deserialize;
-use std::{env::args, ffi::OsStr, fs::read_to_string, path::Path};
+use std::{env::args, fs::read_to_string};
 use toml_edit::de::from_str as toml_from_str;
 
 #[derive(Deserialize)]
@@ -11,22 +12,22 @@ pub struct Config {
     // Your full name
     pub name: Box<str>,
     // Path to directory for generated site output
-    pub output_dir: Box<Path>,
+    pub output_dir: Box<Utf8Path>,
     // Path to site-wide CSS file
-    pub site_css_file: Box<Path>,
+    pub site_css_file: Box<Utf8Path>,
     // Path to site-wide template HTML file
-    pub template_html_file: Box<Path>,
+    pub template_html_file: Box<Utf8Path>,
     // List of titles and paths for all webpage fragment files;
     // for non-article pages like the site index and the "about" page
     pub fragments: Box<[Fragment]>,
     // Path to directory of all articles
-    pub articles_dir: Box<Path>,
+    pub articles_dir: Box<Utf8Path>,
 }
 
 #[derive(Deserialize)]
 pub struct Fragment {
     pub title: Box<str>,
-    pub path: Box<Path>,
+    pub path: Box<Utf8Path>,
 }
 
 impl Config {
@@ -94,7 +95,7 @@ impl Config {
                         fragment.path
                     ));
                 }
-                if fragment.path.file_stem().is_none_or(OsStr::is_empty) {
+                if fragment.path.file_stem().is_none_or(str::is_empty) {
                     return Err(anyhow!("`fragments`: empty file name found"));
                 }
                 if !fragment_paths.insert(&fragment.path) {
