@@ -104,7 +104,7 @@ impl PageBuilder {
     ///
     /// # Errors
     /// This function returns an error if the input body cannot be successfully parsed as no-quirks HTML.
-    pub fn build_page(&self, title: &str, body: &str, contains_math: bool) -> Result<String> {
+    pub fn build_page(&self, title: &str, body: &str, kind: PageKind) -> Result<String> {
         // Parse body into tree of HTML nodes
         let body = parse_html(body)?;
 
@@ -114,7 +114,7 @@ impl PageBuilder {
         // SAFETY: The ID is valid because it was generated in the constructor `PageBuilder::new()`.
         let mut head_node = unsafe { html.get_unchecked_mut(self.head_id) };
 
-        if contains_math {
+        if contains_math(&body, kind) {
             head_node.append(create_el_with_attrs(
                 "link",
                 &[("rel", "stylesheet"), ("href", OUTPUT_KATEX_CSS_FILE)],
@@ -140,6 +140,12 @@ impl PageBuilder {
     }
 }
 
+#[derive(Clone, Copy)]
+pub enum PageKind {
+    Fragment,
+    Article { contains_math: bool },
+}
+
 fn parse_html(input: &str) -> Result<Tree<Node>> {
     let html = Html::parse_fragment(input);
 
@@ -149,6 +155,20 @@ fn parse_html(input: &str) -> Result<Tree<Node>> {
     match html.errors.first() {
         Some(err) => Err(Error::msg(err.clone()).context("failed to parse input as valid HTML")),
         None => Ok(html.tree),
+    }
+}
+
+fn contains_math(html: &Tree<Node>, kind: PageKind) -> bool {
+    match kind {
+        PageKind::Fragment => {
+            html.values().any(|node| {
+                node.as_element().is_some_and(|el| {
+                    (el.name() == "span" && el.classes().any(|c| c == "katex")) // element is `<span class="katex">`
+                        || el.name.ns == ns!(mathml) // element is MathML
+                })
+            })
+        }
+        PageKind::Article { contains_math, .. } => contains_math,
     }
 }
 
@@ -202,8 +222,35 @@ fn append_fragment(node: &mut NodeMut<'_, Node>, fragment_tree: Tree<Node>) {
 
 #[cfg(test)]
 mod test {
-    use super::{create_el, create_el_with_attrs};
+    use super::{contains_math, create_el, create_el_with_attrs, parse_html, PageKind};
     use scraper::{Html, Node};
+
+    #[test]
+    fn contains_math_markup() {
+        /// Utility function for converting a string of HTML to a tree of HTML nodes
+        fn html_contains_math(html: &str, kind: PageKind, expected: bool) {
+            assert_eq!(contains_math(&parse_html(html).unwrap(), kind), expected);
+        }
+
+        html_contains_math(r#"<div class="katex"></div>"#, PageKind::Fragment, false);
+        html_contains_math(r#"<span class="k"></span>"#, PageKind::Fragment, false);
+        html_contains_math(r#"<span class="katex"></span>"#, PageKind::Fragment, true);
+        html_contains_math("<math></math>", PageKind::Fragment, true);
+        html_contains_math(
+            "<math></math>",
+            PageKind::Article {
+                contains_math: false,
+            },
+            false,
+        );
+        html_contains_math(
+            "<div></div>",
+            PageKind::Article {
+                contains_math: true,
+            },
+            true,
+        );
+    }
 
     /// Utility function for asserting that the HTML representation of `element` is equal to `expected`
     fn assert_eq_serialized(element: Node, expected: &str) {

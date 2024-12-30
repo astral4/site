@@ -6,7 +6,7 @@ use pulldown_cmark::{
 };
 use ssg::{
     process_image, save_math_assets, transform_css, Config, CssOutput, Frontmatter, LatexConverter,
-    PageBuilder, RenderMode, SyntaxHighlighter, OUTPUT_CSS_DIR, OUTPUT_SITE_CSS_FILE,
+    PageBuilder, PageKind, RenderMode, SyntaxHighlighter, OUTPUT_CSS_DIR, OUTPUT_SITE_CSS_FILE,
 };
 use std::{
     fs::{create_dir, create_dir_all, read_to_string, write},
@@ -54,7 +54,7 @@ fn main() -> Result<()> {
 
             // Build complete page from fragment
             let html = page_builder
-                .build_page(&fragment.title, &fragment_text, false)
+                .build_page(&fragment.title, &fragment_text, PageKind::Fragment)
                 .context("failed to parse fragment as valid HTML")?;
 
             // Write page HTML to a file in the output directory
@@ -188,10 +188,18 @@ fn main() -> Result<()> {
             .collect::<Result<Vec<_>>>()?;
 
             let mut article_body = String::with_capacity(article_text.len() * 3 / 2);
+
+            // add article "heading" here: title + date
+            // article_body.push_str(&format!("<h1>{}</h1>"));
+
             push_html(&mut article_body, events.into_iter());
 
             let article_html = page_builder
-                .build_page(&article_frontmatter.title, &article_body, contains_math)
+                .build_page(
+                    &article_frontmatter.title,
+                    &article_body,
+                    PageKind::Article { contains_math },
+                )
                 .context("failed to parse processed article body as valid HTML")?;
 
             // Write article HTML to a file in the output article directory
