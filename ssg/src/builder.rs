@@ -29,14 +29,7 @@ impl PageBuilder {
     /// - the input template does not contain a `<main>` element for slotting page content
     pub fn new(author: &str, site_fonts: &[Font], template: &str) -> Result<Self> {
         // Parse template into tree of HTML nodes
-        let template = Html::parse_fragment(template);
-
-        // `Html::parse_fragment()` doesn't return a `Result` because
-        // the parser is supposed to be resilient and fall back to HTML quirks mode upon encountering errors.
-        // So, after parsing, we have to check for any errors encountered ourselves.
-        if let Some(err) = template.errors.first() {
-            return Err(Error::msg(err.clone()).context("failed to parse input as valid HTML"));
-        }
+        let template = parse_html(template)?;
 
         let mut html = Html::new_document();
         let mut root_node = html.tree.root_mut();
@@ -113,14 +106,7 @@ impl PageBuilder {
     /// This function returns an error if the input body cannot be successfully parsed as no-quirks HTML.
     pub fn build_page(&self, title: &str, body: &str, contains_math: bool) -> Result<String> {
         // Parse body into tree of HTML nodes
-        let body = Html::parse_fragment(body);
-
-        // `Html::parse_fragment()` doesn't return a `Result` because
-        // the parser is supposed to be resilient and fall back to HTML quirks mode upon encountering errors.
-        // So, after parsing, we have to check for any errors encountered ourselves.
-        if let Some(err) = body.errors.first() {
-            return Err(Error::msg(err.clone()).context("failed to parse input as valid HTML"));
-        }
+        let body = parse_html(body)?;
 
         let mut html = self.html.clone();
 
@@ -151,6 +137,18 @@ impl PageBuilder {
             tree: html,
         }
         .html())
+    }
+}
+
+fn parse_html(input: &str) -> Result<Tree<Node>> {
+    let html = Html::parse_fragment(input);
+
+    // `Html::parse_fragment()` doesn't return a `Result` because
+    // the parser is supposed to be resilient and fall back to HTML quirks mode upon encountering errors.
+    // So, after parsing, we have to check for any errors encountered ourselves.
+    match html.errors.first() {
+        Some(err) => Err(Error::msg(err.clone()).context("failed to parse input as valid HTML")),
+        None => Ok(html.tree),
     }
 }
 
@@ -189,11 +187,11 @@ enum NameKind {
 }
 
 /// Appends the contents of `fragment` as children of the input `node`.
-fn append_fragment(node: &mut NodeMut<'_, Node>, fragment: Html) {
+fn append_fragment(node: &mut NodeMut<'_, Node>, fragment_tree: Tree<Node>) {
     // Fragments have the following structure:
     // Node::Fragment -> { Node::Element("html") -> { <contents> }}
     // After appending the fragment's tree, we have to make the contents direct children of the node.
-    let mut fragment_root_node = node.append_subtree(fragment.tree);
+    let mut fragment_root_node = node.append_subtree(fragment_tree);
     let fragment_root_id = fragment_root_node.id();
     let fragment_html_id = fragment_root_node.first_child().unwrap().id();
     node.reparent_from_id_append(fragment_html_id);
