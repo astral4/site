@@ -1081,6 +1081,7 @@ version = "0.0.0"
 dependencies = [
  "aho-corasick",
  "anyhow",
+ "camino",
  "common",
  "regex",
  "reqwest",

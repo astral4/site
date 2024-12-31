@@ -1,5 +1,6 @@
 use aho_corasick::AhoCorasick;
 use anyhow::{Context, Result};
+use camino::Utf8Path;
 use common::OUTPUT_FONTS_DIR_ABSOLUTE;
 use regex::Regex;
 use reqwest::Client;
@@ -92,17 +93,11 @@ async fn main() -> Result<()> {
     let new_font_paths: Vec<_> = font_paths
         .iter()
         .map(|path| {
-            let font_file_name = Path::new(path)
+            let font_file_name = Utf8Path::new(path)
                 .file_name()
-                .expect("font path should have a file name")
-                .to_str()
-                .expect("font file name should be valid UTF-8");
+                .expect("font path should have a file name");
 
-            Path::new(OUTPUT_FONTS_DIR_ABSOLUTE)
-                .join(font_file_name)
-                .into_os_string()
-                .into_string()
-                .unwrap()
+            Utf8Path::new(OUTPUT_FONTS_DIR_ABSOLUTE).join(font_file_name)
         })
         .collect();
 
