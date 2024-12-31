@@ -1,15 +1,17 @@
 use anyhow::{anyhow, Context, Result};
-use foldhash::{HashSet, HashSetExt};
+use foldhash::{HashMap, HashMapExt, HashSet, HashSetExt};
 use glob::glob;
 use pulldown_cmark::{
     html::push_html, CodeBlockKind, Event, Options, Parser, Tag, TagEnd, TextMergeStream,
 };
+use same_file::Handle;
 use ssg::{
     process_image, save_math_assets, transform_css, Config, CssOutput, Fragment, Frontmatter,
     LatexConverter, PageBuilder, PageKind, RenderMode, SyntaxHighlighter, OUTPUT_CONTENT_DIR,
     OUTPUT_CSS_DIR, OUTPUT_FONTS_DIR, OUTPUT_SITE_CSS_FILE,
 };
 use std::{
+    collections::hash_map::Entry,
     fs::{create_dir, create_dir_all, read_to_string, write},
     path::{Path, PathBuf},
 };
@@ -53,7 +55,7 @@ fn main() -> Result<()> {
     }
 
     // Check for duplicate slugs from articles' frontmatter so every article has a unique output directory
-    let mut slug_tracker = HashSet::new();
+    let mut article_slugs = HashSet::new();
 
     // Initialize syntax highlighter for article text
     let syntax_highlighter = SyntaxHighlighter::new();
@@ -91,7 +93,7 @@ fn main() -> Result<()> {
                 .context("failed to read article frontmatter")?;
 
             // Check for article slug collisions
-            if !slug_tracker.insert(article_frontmatter.slug.clone()) {
+            if !article_slugs.insert(article_frontmatter.slug.clone()) {
                 return Err(anyhow!(
                     "duplicate article slug found: {}",
                     article_frontmatter.slug
@@ -170,6 +172,9 @@ fn build_article(
     // Transform Markdown components
     let mut events = Vec::new();
 
+    // Check for duplicate image links to avoid redundant image processing
+    let mut image_links: HashMap<_, String> = HashMap::new();
+
     let mut is_in_code_block = false;
     let mut code_language = None;
     let mut contains_math = false;
@@ -202,9 +207,24 @@ fn build_article(
                 title,
                 id,
                 ..
-            }) => process_image(input_dir, output_dir, &dest_url, &title, &id)
-                .context("failed to process image")
-                .map(|html| Event::InlineHtml(html.into()))?,
+            }) => {
+                let image_path = input_dir.join(dest_url.as_ref());
+                let image_handle = Handle::from_path(&image_path)
+                    .with_context(|| format!("failed to open file at {image_path:?}"))?;
+
+                // Check for image link collisions
+                let html = match image_links.entry(image_handle) {
+                    Entry::Occupied(entry) => entry.get().clone(),
+                    Entry::Vacant(entry) => {
+                        let html = process_image(input_dir, output_dir, &dest_url, &title, &id)
+                            .context("failed to process image")?;
+                        entry.insert(html.clone());
+                        html
+                    }
+                };
+
+                Event::InlineHtml(html.into())
+            }
             Event::InlineMath(src) => {
                 contains_math = true;
                 latex_converter
