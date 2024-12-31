@@ -1,6 +1,6 @@
 //! Code for building complete HTML pages from article bodies.
 
-use crate::{css::Font, OUTPUT_SITE_CSS_FILE};
+use crate::{css::Font, OUTPUT_SITE_CSS_FILE_ABSOLUTE};
 use anyhow::{anyhow, Error, Result};
 use ego_tree::{tree, NodeId, NodeMut, Tree};
 use jiff::civil::Date;
@@ -51,7 +51,7 @@ impl PageBuilder {
                 create_el_with_attrs("meta", &[("charset", "utf-8")]),
                 create_el_with_attrs("meta", &[("name", "viewport"), ("content", "width=device-width, initial-scale=1")]),
                 create_el_with_attrs("meta", &[("name", "author"), ("content", author)]),
-                create_el_with_attrs("link", &[("rel", "stylesheet"), ("href", OUTPUT_SITE_CSS_FILE)])
+                create_el_with_attrs("link", &[("rel", "stylesheet"), ("href", OUTPUT_SITE_CSS_FILE_ABSOLUTE)])
             }
         });
 
