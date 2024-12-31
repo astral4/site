@@ -61,7 +61,7 @@ pub fn transform_css(source: &str) -> Result<CssOutput> {
     stylesheet
         .minify(MinifyOptions {
             targets,
-            unused_symbols: HashSet::default(),
+            unused_symbols: HashSet::default(), // This is required to be `std::collections::HashSet`
         })
         .context("failed to minify CSS")?;
 
