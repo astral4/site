@@ -189,16 +189,17 @@ fn main() -> Result<()> {
 
             let mut article_body = String::with_capacity(article_text.len() * 3 / 2);
 
-            // add article "heading" here: title + date
-            // article_body.push_str(&format!("<h1>{}</h1>"));
-
             push_html(&mut article_body, events.into_iter());
 
             let article_html = page_builder
                 .build_page(
                     &article_frontmatter.title,
                     &article_body,
-                    PageKind::Article { contains_math },
+                    PageKind::Article {
+                        contains_math,
+                        created: article_frontmatter.created,
+                        updated: article_frontmatter.updated,
+                    },
                 )
                 .context("failed to parse processed article body as valid HTML")?;
 

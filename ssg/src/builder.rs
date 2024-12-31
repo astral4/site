@@ -3,6 +3,7 @@
 use crate::{css::Font, OUTPUT_SITE_CSS_FILE};
 use anyhow::{anyhow, Error, Result};
 use ego_tree::{tree, NodeId, NodeMut, Tree};
+use jiff::civil::Date;
 use markup5ever::{interface::QuirksMode, namespace_url, ns, Attribute, LocalName, QualName};
 use scraper::{
     node::{Doctype, Element, Node, Text},
@@ -100,7 +101,8 @@ impl PageBuilder {
         })
     }
 
-    /// Outputs a string containing a complete HTML document based on the provided document title and body.
+    /// Outputs a string containing a complete HTML document based on the provided document title and body
+    /// (and article metadata if the page is an article).
     ///
     /// # Errors
     /// This function returns an error if the input body cannot be successfully parsed as no-quirks HTML.
@@ -122,12 +124,36 @@ impl PageBuilder {
         }
 
         head_node.append_subtree(tree! {
-            create_el("title") => { Node::Text(Text { text: title.into() }) }
+            create_el("title") => { create_text(title) }
         });
 
         // Add page content within template slot
         // SAFETY: The ID is valid because it was generated in the constructor `PageBuilder::new()`.
         let mut slot_node = unsafe { html.get_unchecked_mut(self.slot_id) };
+
+        // Add heading section with title and created/last-updated dates for article pages
+        if let PageKind::Article {
+            created, updated, ..
+        } = kind
+        {
+            let date_string = match updated {
+                Some(updated) => format!("{created} (last updated {updated})"),
+                None => created.to_string(),
+            };
+
+            append_fragment(
+                &mut slot_node,
+                tree! {
+                    Node::Fragment => { Node::Fragment => {
+                        create_el_with_attrs("div", &[("class", "article-heading")]) => {
+                            create_el("h1") => { create_text(title) },
+                            create_el("p") => { create_text(&date_string) }
+                        }
+                    }}
+                },
+            );
+        }
+
         append_fragment(&mut slot_node, body);
 
         // Serialize document tree
@@ -143,7 +169,11 @@ impl PageBuilder {
 #[derive(Clone, Copy)]
 pub enum PageKind {
     Fragment,
-    Article { contains_math: bool },
+    Article {
+        contains_math: bool,
+        created: Date,
+        updated: Option<Date>,
+    },
 }
 
 fn parse_html(input: &str) -> Result<Tree<Node>> {
@@ -206,6 +236,10 @@ enum NameKind {
     Attr,
 }
 
+fn create_text(text: &str) -> Node {
+    Node::Text(Text { text: text.into() })
+}
+
 /// Appends the contents of `fragment` as children of the input `node`.
 fn append_fragment(node: &mut NodeMut<'_, Node>, fragment_tree: Tree<Node>) {
     // Fragments have the following structure:
@@ -223,6 +257,7 @@ fn append_fragment(node: &mut NodeMut<'_, Node>, fragment_tree: Tree<Node>) {
 #[cfg(test)]
 mod test {
     use super::{contains_math, create_el, create_el_with_attrs, parse_html, PageKind};
+    use jiff::civil::Date;
     use scraper::{Html, Node};
 
     #[test]
@@ -240,6 +275,8 @@ mod test {
             "<math></math>",
             PageKind::Article {
                 contains_math: false,
+                created: Date::default(),
+                updated: Option::default(),
             },
             false,
         );
@@ -247,6 +284,8 @@ mod test {
             "<div></div>",
             PageKind::Article {
                 contains_math: true,
+                created: Date::default(),
+                updated: Option::default(),
             },
             true,
         );
