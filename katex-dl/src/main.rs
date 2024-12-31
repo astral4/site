@@ -90,6 +90,7 @@ async fn main() -> Result<()> {
         font_paths.push(font_path);
     }
 
+    // Replace font paths in KaTeX CSS source
     let new_font_paths: Vec<_> = font_paths
         .iter()
         .map(|path| {
