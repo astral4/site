@@ -1,6 +1,7 @@
 //! Utility for converting images in articles to AVIF.
 
 use anyhow::{anyhow, Context, Result};
+use camino::Utf8Path;
 use image::{codecs::avif::AvifEncoder, GenericImageView, ImageEncoder, ImageReader};
 use std::{
     fs::{copy, File},
@@ -73,9 +74,11 @@ pub fn process_image(
             .with_context(|| format!("failed to write image to {output_path:?}"))?;
     }
 
+    let image_src = Utf8Path::new(image_path).with_extension("avif");
+
     Ok(if id.is_empty() {
-        format!("<img src=\"{image_path}\" alt=\"{alt_text}\" width=\"{width}\" height=\"{height}\" decoding=\"async\" loading=\"lazy\">")
+        format!("<img src=\"{image_src}\" alt=\"{alt_text}\" width=\"{width}\" height=\"{height}\" decoding=\"async\" loading=\"lazy\">")
     } else {
-        format!("<img src=\"{image_path}\" alt=\"{alt_text}\" width=\"{width}\" height=\"{height}\" decoding=\"async\" loading=\"lazy\" id=\"{id}\">")
+        format!("<img src=\"{image_src}\" alt=\"{alt_text}\" width=\"{width}\" height=\"{height}\" decoding=\"async\" loading=\"lazy\" id=\"{id}\">")
     })
 }
