@@ -8,6 +8,13 @@ use std::{
     path::Path,
 };
 
+// In debug builds, we use the fastest encoding speed for the fastest site build times.
+// In release builds, we use the slowest encoding speed for the best compression.
+#[cfg(debug_assertions)]
+const ENCODER_SPEED: u8 = 10;
+#[cfg(not(debug_assertions))]
+const ENCODER_SPEED: u8 = 1;
+
 /// Processes an image link by converting the linked image to AVIF and saving it to an output path.
 /// This function outputs a string containing an HTML <img> element
 /// with `src`, `alt`, dimension, and rendering attributes.
@@ -60,8 +67,8 @@ pub fn process_image(
             File::create(&output_path)
                 .with_context(|| format!("failed to create file at {output_path:?}"))?,
         );
-        // We use the slowest encoding speed for the best compression.
-        AvifEncoder::new_with_speed_quality(writer, 1, 80)
+
+        AvifEncoder::new_with_speed_quality(writer, ENCODER_SPEED, 80)
             .write_image(image.as_bytes(), width, height, image.color().into())
             .with_context(|| format!("failed to write image to {output_path:?}"))?;
     }
