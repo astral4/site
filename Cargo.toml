@@ -40,7 +40,6 @@ doc_markdown = { level = "allow", priority = 1 }
 module_name_repetitions = { level = "allow", priority = 1 }
 new_without_default = { level = "allow", priority = 1 }
 should_panic_without_expect = { level = "allow", priority = 1 }
-too_many_lines = { level = "allow", priority = 1 }
 pedantic = "warn"
 
 [profile.release]

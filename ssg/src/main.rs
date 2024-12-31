@@ -5,13 +5,13 @@ use pulldown_cmark::{
     html::push_html, CodeBlockKind, Event, Options, Parser, Tag, TagEnd, TextMergeStream,
 };
 use ssg::{
-    process_image, save_math_assets, transform_css, Config, CssOutput, Frontmatter, LatexConverter,
-    PageBuilder, PageKind, RenderMode, SyntaxHighlighter, OUTPUT_CONTENT_DIR, OUTPUT_CSS_DIR,
-    OUTPUT_FONTS_DIR, OUTPUT_SITE_CSS_FILE,
+    process_image, save_math_assets, transform_css, Config, CssOutput, Fragment, Frontmatter,
+    LatexConverter, PageBuilder, PageKind, RenderMode, SyntaxHighlighter, OUTPUT_CONTENT_DIR,
+    OUTPUT_CSS_DIR, OUTPUT_FONTS_DIR, OUTPUT_SITE_CSS_FILE,
 };
 use std::{
     fs::{create_dir, create_dir_all, read_to_string, write},
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
 fn main() -> Result<()> {
@@ -48,28 +48,8 @@ fn main() -> Result<()> {
 
     // Process all fragment files
     for fragment in config.fragments {
-        (|| -> Result<()> {
-            // Get fragment text
-            let fragment_text =
-                read_to_string(&fragment.path).context("failed to read fragment file")?;
-
-            // Build complete page from fragment
-            let html = page_builder
-                .build_page(&fragment.title, &fragment_text, PageKind::Fragment)
-                .context("failed to parse fragment as valid HTML")?;
-
-            // Write page HTML to a file in the output directory
-            let output_path = config
-                .output_dir
-                .join(fragment.path.file_name().unwrap()) // File stem is guaranteed to be Some(_) from `Config::from_env()`
-                .with_extension("html");
-
-            write(&output_path, html)
-                .with_context(|| format!("failed to write HTML to {output_path:?}"))?;
-
-            Ok(())
-        })()
-        .with_context(|| format!("failed to process fragment at {:?}", fragment.path))?;
+        process_fragment(&fragment, &config.output_dir, &page_builder)
+            .with_context(|| format!("failed to process fragment at {:?}", fragment.path))?;
     }
 
     // Check for duplicate slugs from articles' frontmatter so every article has a unique output directory
@@ -128,81 +108,17 @@ fn main() -> Result<()> {
                 format!("failed to create output article directory at {output_article_dir:?}")
             })?;
 
-            let mut is_in_code_block = false;
-            let mut code_language = None;
-            let mut contains_math = false;
-
             // Convert article from Markdown to HTML
-            let events = TextMergeStream::new(Parser::new_ext(
+            let article_html = build_article(
                 &article_text,
-                Options::ENABLE_STRIKETHROUGH
-                    | Options::ENABLE_YAML_STYLE_METADATA_BLOCKS
-                    | Options::ENABLE_MATH,
-            ))
-            .map(|event| match event {
-                Event::Start(Tag::CodeBlock(ref kind)) => {
-                    is_in_code_block = true;
-                    code_language = match kind {
-                        CodeBlockKind::Indented => None,
-                        CodeBlockKind::Fenced(lang) => (!lang.is_empty()).then(|| lang.clone()),
-                    };
-                    Ok(event)
-                }
-                Event::End(TagEnd::CodeBlock) => {
-                    is_in_code_block = false;
-                    Ok(event)
-                }
-                Event::Text(text) if is_in_code_block => syntax_highlighter
-                    .highlight(&text, code_language.as_deref())
-                    .context("failed to highlight text block")
-                    .map(|html| Event::InlineHtml(html.into())),
-                Event::Start(Tag::Image {
-                    dest_url,
-                    title,
-                    id,
-                    ..
-                }) => process_image(
-                    &input_article_dir,
-                    &output_article_dir,
-                    &dest_url,
-                    &title,
-                    &id,
-                )
-                .context("failed to process image")
-                .map(|html| Event::InlineHtml(html.into())),
-                Event::InlineMath(src) => {
-                    contains_math = true;
-                    latex_converter
-                        .latex_to_html(&src, RenderMode::Inline)
-                        .context("failed to convert LaTeX to HTML")
-                        .map(|html| Event::InlineHtml(html.into()))
-                }
-                Event::DisplayMath(src) => {
-                    contains_math = true;
-                    latex_converter
-                        .latex_to_html(&src, RenderMode::Display)
-                        .context("failed to convert LaTeX to HTML")
-                        .map(|html| Event::InlineHtml(html.into()))
-                }
-                _ => Ok(event),
-            })
-            .collect::<Result<Vec<_>>>()?;
-
-            let mut article_body = String::with_capacity(article_text.len() * 3 / 2);
-
-            push_html(&mut article_body, events.into_iter());
-
-            let article_html = page_builder
-                .build_page(
-                    &article_frontmatter.title,
-                    &article_body,
-                    PageKind::Article {
-                        contains_math,
-                        created: article_frontmatter.created,
-                        updated: article_frontmatter.updated,
-                    },
-                )
-                .context("failed to parse processed article body as valid HTML")?;
+                &article_frontmatter,
+                &syntax_highlighter,
+                &latex_converter,
+                &input_article_dir,
+                &output_article_dir,
+                &page_builder,
+            )
+            .context("failed to build article HTML")?;
 
             // Write article HTML to a file in the output article directory
             let output_article_path = output_article_dir.join("index.html");
@@ -216,4 +132,110 @@ fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+fn process_fragment(
+    fragment: &Fragment,
+    output_dir: &Path,
+    page_builder: &PageBuilder,
+) -> Result<()> {
+    // Get fragment text
+    let fragment_text = read_to_string(&fragment.path).context("failed to read fragment file")?;
+
+    // Build complete page from fragment
+    let html = page_builder
+        .build_page(&fragment.title, &fragment_text, PageKind::Fragment)
+        .context("failed to parse fragment as valid HTML")?;
+
+    // Write page HTML to a file in the output directory
+    let output_path = output_dir
+        .join(fragment.path.file_name().unwrap()) // File stem is guaranteed to be Some(_) from `Config::from_env()`
+        .with_extension("html");
+
+    write(&output_path, html)
+        .with_context(|| format!("failed to write HTML to {output_path:?}"))?;
+
+    Ok(())
+}
+
+fn build_article(
+    markdown: &str,
+    frontmatter: &Frontmatter,
+    syntax_highlighter: &SyntaxHighlighter,
+    latex_converter: &LatexConverter,
+    input_dir: &Path,
+    output_dir: &Path,
+    page_builder: &PageBuilder,
+) -> Result<String> {
+    // Transform Markdown components
+    let mut is_in_code_block = false;
+    let mut code_language = None;
+    let mut contains_math = false;
+
+    let events = TextMergeStream::new(Parser::new_ext(
+        markdown,
+        Options::ENABLE_STRIKETHROUGH
+            | Options::ENABLE_YAML_STYLE_METADATA_BLOCKS
+            | Options::ENABLE_MATH,
+    ))
+    .map(|event| match event {
+        Event::Start(Tag::CodeBlock(ref kind)) => {
+            is_in_code_block = true;
+            code_language = match kind {
+                CodeBlockKind::Indented => None,
+                CodeBlockKind::Fenced(lang) => (!lang.is_empty()).then(|| lang.clone()),
+            };
+            Ok(event)
+        }
+        Event::End(TagEnd::CodeBlock) => {
+            is_in_code_block = false;
+            Ok(event)
+        }
+        Event::Text(text) if is_in_code_block => syntax_highlighter
+            .highlight(&text, code_language.as_deref())
+            .context("failed to highlight text block")
+            .map(|html| Event::InlineHtml(html.into())),
+        Event::Start(Tag::Image {
+            dest_url,
+            title,
+            id,
+            ..
+        }) => process_image(input_dir, output_dir, &dest_url, &title, &id)
+            .context("failed to process image")
+            .map(|html| Event::InlineHtml(html.into())),
+        Event::InlineMath(src) => {
+            contains_math = true;
+            latex_converter
+                .latex_to_html(&src, RenderMode::Inline)
+                .context("failed to convert LaTeX to HTML")
+                .map(|html| Event::InlineHtml(html.into()))
+        }
+        Event::DisplayMath(src) => {
+            contains_math = true;
+            latex_converter
+                .latex_to_html(&src, RenderMode::Display)
+                .context("failed to convert LaTeX to HTML")
+                .map(|html| Event::InlineHtml(html.into()))
+        }
+        _ => Ok(event),
+    })
+    .collect::<Result<Vec<_>>>()?;
+
+    // Serialize article body to HTML
+    let mut article_body = String::with_capacity(markdown.len() * 3 / 2);
+
+    push_html(&mut article_body, events.into_iter());
+
+    // Build complete page
+    page_builder
+        .build_page(
+            &frontmatter.title,
+            &article_body,
+            PageKind::Article {
+                contains_math,
+                created: frontmatter.created,
+                updated: frontmatter.updated,
+            },
+        )
+        .context("failed to parse processed article body as valid HTML")
 }
