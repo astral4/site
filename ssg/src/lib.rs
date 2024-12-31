@@ -18,7 +18,8 @@ pub const OUTPUT_CSS_DIR: &str = "stylesheets/";
 pub const OUTPUT_SITE_CSS_FILE: &str = "stylesheets/site.css";
 const OUTPUT_SITE_CSS_FILE_ABSOLUTE: &str = "/stylesheets/site.css";
 const OUTPUT_KATEX_CSS_FILE: &str = "stylesheets/katex.css";
-const OUTPUT_KATEX_FONTS_DIR: &str = "fonts/";
+pub const OUTPUT_FONTS_DIR: &str = "fonts/";
+pub const OUTPUT_CONTENT_DIR: &str = "writing/";
 
 const KATEX_CSS: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../katex/katex.css"));
 const KATEX_FONTS: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/../katex/fonts/");
@@ -36,7 +37,7 @@ pub fn save_math_assets(output_dir: &Path) -> Result<()> {
         .context("failed to write KaTeX CSS to output destination")?;
 
     KATEX_FONTS
-        .extract(output_dir.join(OUTPUT_KATEX_FONTS_DIR))
+        .extract(output_dir.join(OUTPUT_FONTS_DIR))
         .context("failed to write KaTeX fonts to output destination")?;
 
     Ok(())

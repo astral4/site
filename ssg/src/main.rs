@@ -6,14 +6,13 @@ use pulldown_cmark::{
 };
 use ssg::{
     process_image, save_math_assets, transform_css, Config, CssOutput, Frontmatter, LatexConverter,
-    PageBuilder, PageKind, RenderMode, SyntaxHighlighter, OUTPUT_CSS_DIR, OUTPUT_SITE_CSS_FILE,
+    PageBuilder, PageKind, RenderMode, SyntaxHighlighter, OUTPUT_CONTENT_DIR, OUTPUT_CSS_DIR,
+    OUTPUT_FONTS_DIR, OUTPUT_SITE_CSS_FILE,
 };
 use std::{
     fs::{create_dir, create_dir_all, read_to_string, write},
     path::PathBuf,
 };
-
-const OUTPUT_CONTENT_DIR: &str = "writing/";
 
 fn main() -> Result<()> {
     // Read configuration
@@ -23,6 +22,8 @@ fn main() -> Result<()> {
     create_dir_all(&config.output_dir).context("failed to create output directory")?;
     create_dir(config.output_dir.join(OUTPUT_CSS_DIR))
         .context("failed to create output CSS directory")?;
+    create_dir(config.output_dir.join(OUTPUT_FONTS_DIR))
+        .context("failed to create output fonts directory")?;
     create_dir(config.output_dir.join(OUTPUT_CONTENT_DIR))
         .context("failed to create output articles directory")?;
 
