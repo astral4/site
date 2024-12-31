@@ -14,11 +14,12 @@ pub use highlight::SyntaxHighlighter;
 pub use image::process_image;
 pub use latex::{LatexConverter, RenderMode};
 
+pub use common::OUTPUT_FONTS_DIR;
+
 pub const OUTPUT_CSS_DIR: &str = "stylesheets/";
 pub const OUTPUT_SITE_CSS_FILE: &str = "stylesheets/site.css";
 const OUTPUT_SITE_CSS_FILE_ABSOLUTE: &str = "/stylesheets/site.css";
 const OUTPUT_KATEX_CSS_FILE: &str = "stylesheets/katex.css";
-pub const OUTPUT_FONTS_DIR: &str = "fonts/";
 pub const OUTPUT_CONTENT_DIR: &str = "writing/";
 
 const KATEX_CSS: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../katex/katex.css"));

@@ -1,4 +1,6 @@
+use aho_corasick::AhoCorasick;
 use anyhow::{Context, Result};
+use common::OUTPUT_FONTS_DIR_ABSOLUTE;
 use regex::Regex;
 use reqwest::Client;
 use std::{
@@ -71,21 +73,46 @@ async fn main() -> Result<()> {
     // This is for the purpose of only supporting WOFF2; WOFF and TTF don't need to be served
     let css_source = top_font_matcher.replace_all(&css_source, "$1");
 
-    // Save KaTeX CSS source
-    write(Path::new(KATEX_DIR).join("katex.css"), &*css_source)
-        .context("failed to save KaTeX CSS")?;
-
     let mut tasks = JoinSet::new();
+    let mut font_paths = Vec::new();
 
     // Get font URLs and concurrently fetch fonts
     for capture in font_url_matcher.captures_iter(&css_source) {
         let font_path = capture.extract::<1>().1[0];
+
         tasks.spawn(download_font(
             client.clone(),
             dist_url.clone(),
             font_path.to_owned(),
         ));
+
+        font_paths.push(font_path);
     }
+
+    let new_font_paths: Vec<_> = font_paths
+        .iter()
+        .map(|path| {
+            let font_file_name = Path::new(path)
+                .file_name()
+                .expect("font path should have a file name")
+                .to_str()
+                .expect("font file name should be valid UTF-8");
+
+            Path::new(OUTPUT_FONTS_DIR_ABSOLUTE)
+                .join(font_file_name)
+                .into_os_string()
+                .into_string()
+                .unwrap()
+        })
+        .collect();
+
+    let css_source = AhoCorasick::new(font_paths)
+        .expect("automaton construction should succeed")
+        .replace_all(&css_source, &new_font_paths);
+
+    // Save KaTeX CSS source
+    write(Path::new(KATEX_DIR).join("katex.css"), css_source)
+        .context("failed to save KaTeX CSS")?;
 
     // Wait for all concurrent tasks to finish
     while let Some(result) = tasks.join_next().await {

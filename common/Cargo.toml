@@ -1,0 +1,14 @@
+[package]
+name = "common"
+version = "0.0.0"
+authors.workspace = true
+edition.workspace = true
+description = "Utilities shared between all crates in this workspace"
+repository.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+
+[lints]
+workspace = true

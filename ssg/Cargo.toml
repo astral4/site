@@ -12,6 +12,7 @@ publish.workspace = true
 [dependencies]
 anyhow.workspace = true
 camino = { version = "1.1.9", features = ["serde1"] }
+common = { path = "../common/" }
 ego-tree = "0.10.0"
 foldhash = "0.1.4"
 glob = "0.3.1"

@@ -1,5 +1,5 @@
 [workspace]
-members = ["katex-dl", "ssg"]
+members = ["common", "katex-dl", "ssg"]
 resolver = "2"
 
 [workspace.package]
