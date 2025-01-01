@@ -208,7 +208,7 @@ fn build_article(
                 is_in_code_block = true;
                 code_language = match kind {
                     CodeBlockKind::Indented => None,
-                    CodeBlockKind::Fenced(lang) => (!lang.is_empty()).then(|| lang.clone()),
+                    CodeBlockKind::Fenced(lang) => Some(lang.clone()),
                 };
                 event
             }

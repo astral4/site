@@ -41,10 +41,12 @@ impl SyntaxHighlighter {
     /// This function returns an error if `syntect` fails to highlight the provided text.
     pub fn highlight(&self, text: &str, language: Option<&str>) -> Result<String> {
         let syntax = match language {
-            Some(lang) => self.syntaxes.find_syntax_by_token(lang).ok_or_else(|| {
-                anyhow!("no syntax could be found for the provided language \"{lang}\"")
-            })?,
-            None => self.syntaxes.find_syntax_plain_text(),
+            Some(lang) if !lang.is_empty() => {
+                self.syntaxes.find_syntax_by_token(lang).ok_or_else(|| {
+                    anyhow!("no syntax could be found for the provided language \"{lang}\"")
+                })?
+            }
+            _ => self.syntaxes.find_syntax_plain_text(),
         };
 
         highlighted_html_for_string(text, &self.syntaxes, syntax, &self.theme).map_err(Into::into)
