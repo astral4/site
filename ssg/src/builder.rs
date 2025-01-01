@@ -157,12 +157,7 @@ impl PageBuilder {
         append_fragment(&mut slot_node, body);
 
         // Serialize document tree
-        Ok(Html {
-            errors: Vec::new(),
-            quirks_mode: QuirksMode::NoQuirks,
-            tree: html,
-        }
-        .html())
+        Ok(tree_to_html(html))
     }
 }
 
@@ -174,6 +169,11 @@ pub enum PageKind {
         created: Date,
         updated: Option<Date>,
     },
+}
+
+/// Returns an `<img>` element with the provided attributes as a string of HTML.
+pub(crate) fn create_img_html(attrs: &[(&str, &str)]) -> String {
+    tree_to_html(tree! { create_el_with_attrs("img", attrs) })
 }
 
 fn parse_html(input: &str) -> Result<Tree<Node>> {
@@ -252,6 +252,16 @@ fn append_fragment(node: &mut NodeMut<'_, Node>, fragment_tree: Tree<Node>) {
     // SAFETY: Indexing is guaranteed to be valid because
     // the ID was obtained from appending the fragment as a subtree of a node from the tree.
     unsafe { node.tree().get_unchecked_mut(fragment_root_id) }.detach();
+}
+
+/// Serializes a tree of HTML nodes as a string of HTML.
+fn tree_to_html(tree: Tree<Node>) -> String {
+    Html {
+        errors: Vec::new(),
+        quirks_mode: QuirksMode::NoQuirks,
+        tree,
+    }
+    .html()
 }
 
 #[cfg(test)]

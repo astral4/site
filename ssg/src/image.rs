@@ -1,5 +1,6 @@
 //! Utility for converting images in articles to AVIF.
 
+use crate::builder::create_img_html;
 use anyhow::{anyhow, Context, Result};
 use camino::{Utf8Component, Utf8Path};
 use image::{codecs::avif::AvifEncoder, GenericImageView, ImageEncoder, ImageReader};
@@ -88,21 +89,25 @@ impl ActiveImageState {
 
         let image_src = Utf8Path::new(&self.url).with_extension(OUTPUT_FORMAT_EXTENSION);
         let alt_text = &article_src[self.alt_text_range];
+        let (width_str, height_str) = (self.width.to_string(), self.height.to_string());
 
         // Build image HTML representation
-        let mut html = format!(
-            r#"<img src="{image_src}" alt="{alt_text}" width="{}" height="{}" decoding="async" loading="lazy""#,
-            self.width, self.height
-        );
+        let mut attrs = Vec::with_capacity(8);
+        attrs.push(("src", image_src.as_str()));
+        attrs.push(("alt", alt_text));
+        attrs.push(("width", &width_str));
+        attrs.push(("height", &height_str));
+        attrs.push(("decoding", "async"));
+        attrs.push(("loading", "lazy"));
+
         if !self.title.is_empty() {
-            html.push_str(&format!(" title=\"{}\"", self.title));
+            attrs.push(("title", &self.title));
         }
         if !self.id.is_empty() {
-            html.push_str(&format!(" id=\"{}\"", self.id));
+            attrs.push(("id", &self.id));
         }
-        html.push('>');
 
-        html
+        create_img_html(&attrs)
     }
 }
 
