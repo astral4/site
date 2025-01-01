@@ -32,6 +32,7 @@ pub fn process_image(
     output_article_dir: &Path,
     image_path: &str,
     alt_text: &str,
+    title: &str,
     id: &str,
 ) -> Result<String> {
     if image_path.is_empty() {
@@ -79,9 +80,17 @@ pub fn process_image(
 
     let image_src = image_path.with_extension("avif");
 
-    Ok(if id.is_empty() {
-        format!("<img src=\"{image_src}\" alt=\"{alt_text}\" width=\"{width}\" height=\"{height}\" decoding=\"async\" loading=\"lazy\">")
-    } else {
-        format!("<img src=\"{image_src}\" alt=\"{alt_text}\" width=\"{width}\" height=\"{height}\" decoding=\"async\" loading=\"lazy\" id=\"{id}\">")
-    })
+    // Build image HTML representation
+    let mut html = format!(
+        r#"<img src="{image_src}" alt="{alt_text}" width="{width}" height="{height}" decoding="async" loading="lazy""#
+    );
+    if !title.is_empty() {
+        html.push_str(&format!(" title=\"{title}\""));
+    }
+    if !id.is_empty() {
+        html.push_str(&format!(" id=\"{id}\""));
+    }
+    html.push('>');
+
+    Ok(html)
 }

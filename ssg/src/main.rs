@@ -2,7 +2,7 @@ use anyhow::{anyhow, Context, Result};
 use foldhash::{HashMap, HashMapExt, HashSet, HashSetExt};
 use glob::glob;
 use pulldown_cmark::{
-    html::push_html, CodeBlockKind, Event, Options, Parser, Tag, TagEnd, TextMergeStream,
+    html::push_html, CodeBlockKind, Event, Options, Parser, Tag, TagEnd, TextMergeWithOffset,
 };
 use same_file::Handle;
 use ssg::{
@@ -13,6 +13,7 @@ use ssg::{
 use std::{
     collections::hash_map::Entry,
     fs::{create_dir, create_dir_all, read_to_string, write},
+    ops::Range,
     path::{Path, PathBuf},
 };
 
@@ -174,17 +175,36 @@ fn build_article(
 
     // Check for duplicate image links to avoid redundant image processing
     let mut image_links: HashMap<_, String> = HashMap::new();
-
+    // Track image parsing state to support image alt text
+    let mut active_image_state: Option<ActiveImageState> = None;
+    // Track code block parsing state to support syntax highlighting
     let mut is_in_code_block = false;
     let mut code_language = None;
+    // Record existence of math markup to support KaTeX formatting
     let mut contains_math = false;
 
-    for event in TextMergeStream::new(Parser::new_ext(
-        markdown,
-        Options::ENABLE_STRIKETHROUGH
-            | Options::ENABLE_YAML_STYLE_METADATA_BLOCKS
-            | Options::ENABLE_MATH,
-    )) {
+    for (event, offset) in TextMergeWithOffset::new(
+        Parser::new_ext(
+            markdown,
+            Options::ENABLE_STRIKETHROUGH
+                | Options::ENABLE_YAML_STYLE_METADATA_BLOCKS
+                | Options::ENABLE_MATH,
+        )
+        .into_offset_iter(),
+    ) {
+        if let Some(state) = active_image_state.as_mut() {
+            if matches!(event, Event::Start(Tag::Image { .. })) {
+                state.nest();
+            }
+            if matches!(event, Event::End(TagEnd::Image)) {
+                state.unnest();
+            }
+            if state.is_active() {
+                state.update_alt_text_range(offset);
+                continue;
+            }
+        }
+
         events.push(match event {
             Event::Start(Tag::CodeBlock(ref kind)) => {
                 is_in_code_block = true;
@@ -208,20 +228,26 @@ fn build_article(
                 id,
                 ..
             }) => {
-                let image_path = input_dir.join(dest_url.as_ref());
-                let image_handle = Handle::from_path(&image_path)
-                    .with_context(|| format!("failed to open file at {image_path:?}"))?;
+                active_image_state
+                    .get_or_insert_with(|| ActiveImageState::new(&dest_url, &title, &id));
+                continue;
+            }
+            Event::End(TagEnd::Image) => {
+                let active_image = active_image_state.unwrap();
+                let input_handle = active_image.input_path_handle(input_dir)?;
 
-                // Check for image link collisions
-                let html = match image_links.entry(image_handle) {
+                let html = match image_links.entry(input_handle) {
                     Entry::Occupied(entry) => entry.get().clone(),
                     Entry::Vacant(entry) => {
-                        let html = process_image(input_dir, output_dir, &dest_url, &title, &id)
+                        let html = active_image
+                            .transform_image(input_dir, output_dir, markdown)
                             .context("failed to process image")?;
                         entry.insert(html.clone());
                         html
                     }
                 };
+
+                active_image_state = None;
 
                 Event::InlineHtml(html.into())
             }
@@ -259,4 +285,78 @@ fn build_article(
             },
         )
         .context("failed to parse processed article body as valid HTML")
+}
+
+struct ActiveImageState {
+    nesting_level: usize,
+    url: Box<str>,
+    title: Box<str>,
+    id: Box<str>,
+    alt_text_range: Range<usize>,
+}
+
+impl ActiveImageState {
+    const INIT_NESTING_LEVEL: usize = 1;
+
+    fn new(url: &str, title: &str, id: &str) -> Self {
+        Self {
+            nesting_level: Self::INIT_NESTING_LEVEL,
+            url: url.into(),
+            title: title.into(),
+            id: id.into(),
+            alt_text_range: Range {
+                start: usize::MAX,
+                end: usize::MIN,
+            },
+        }
+    }
+
+    fn nest(&mut self) {
+        self.nesting_level += 1;
+    }
+
+    fn unnest(&mut self) {
+        self.nesting_level -= 1;
+    }
+
+    fn is_active(&self) -> bool {
+        self.nesting_level >= Self::INIT_NESTING_LEVEL
+    }
+
+    fn update_alt_text_range(&mut self, range: Range<usize>) {
+        let Range { start, end } = range;
+        if start < self.alt_text_range.start {
+            self.alt_text_range.start = start;
+        }
+        if end > self.alt_text_range.end {
+            self.alt_text_range.end = end;
+        }
+    }
+
+    fn input_path_handle(&self, input_dir: &Path) -> Result<Handle> {
+        let image_path = input_dir.join(&*self.url);
+
+        Handle::from_path(&image_path)
+            .with_context(|| format!("failed to open file at {image_path:?}"))
+    }
+
+    fn transform_image(
+        self,
+        input_dir: &Path,
+        output_dir: &Path,
+        article_src: &str,
+    ) -> Result<String> {
+        debug_assert_eq!(self.nesting_level, Self::INIT_NESTING_LEVEL - 1);
+
+        let alt_text = &article_src[self.alt_text_range];
+
+        process_image(
+            input_dir,
+            output_dir,
+            &self.url,
+            alt_text,
+            &self.title,
+            &self.id,
+        )
+    }
 }
