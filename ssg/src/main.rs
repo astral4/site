@@ -197,10 +197,16 @@ fn build_article(
             if matches!(event, Event::End(TagEnd::Image)) {
                 state.unnest();
             }
+
             if state.is_active() {
                 state.update_alt_text_range(offset);
-                continue;
+            } else {
+                let html = active_image_state.unwrap().into_html(markdown);
+                events.push(Event::InlineHtml(html.into()));
+                active_image_state = None;
             }
+
+            continue;
         }
 
         events.push(match event {
@@ -247,11 +253,6 @@ fn build_article(
                     Some(ActiveImageState::new(&dest_url, dimensions, &title, &id));
 
                 continue;
-            }
-            Event::End(TagEnd::Image) => {
-                let html = active_image_state.unwrap().into_html(markdown);
-                active_image_state = None;
-                Event::InlineHtml(html.into())
             }
             Event::InlineMath(src) => {
                 contains_math = true;
