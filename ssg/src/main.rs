@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Context, Result};
-use camino::Utf8PathBuf;
+use camino::{Utf8Component, Utf8Path, Utf8PathBuf};
 use foldhash::{HashMap, HashMapExt, HashSet, HashSetExt};
 use glob::glob;
 use pulldown_cmark::{
@@ -7,7 +7,7 @@ use pulldown_cmark::{
 };
 use same_file::Handle;
 use ssg::{
-    process_image, save_math_assets, transform_css, Config, CssOutput, Fragment, Frontmatter,
+    convert_image, save_math_assets, transform_css, Config, CssOutput, Fragment, Frontmatter,
     LatexConverter, PageBuilder, PageKind, RenderMode, SyntaxHighlighter, OUTPUT_CONTENT_DIR,
     OUTPUT_CSS_DIR, OUTPUT_FONTS_DIR, OUTPUT_SITE_CSS_FILE,
 };
@@ -173,7 +173,7 @@ fn build_article(
     let mut events = Vec::new();
 
     // Check for duplicate image links to avoid redundant image processing
-    let mut image_links: HashMap<_, String> = HashMap::new();
+    let mut image_links = HashMap::new();
     // Track image parsing state to support image alt text
     let mut active_image_state: Option<ActiveImageState> = None;
     // Track code block parsing state to support syntax highlighting
@@ -227,27 +227,31 @@ fn build_article(
                 id,
                 ..
             }) => {
-                active_image_state
-                    .get_or_insert_with(|| ActiveImageState::new(&dest_url, &title, &id));
-                continue;
-            }
-            Event::End(TagEnd::Image) => {
-                let active_image = active_image_state.unwrap();
-                let input_handle = active_image.input_path_handle(input_dir)?;
+                debug_assert!(active_image_state.is_none());
 
-                let html = match image_links.entry(input_handle) {
-                    Entry::Occupied(entry) => entry.get().clone(),
+                validate_image_src(&dest_url).context("image source is invalid")?;
+
+                let input_path = input_dir.join(dest_url.as_ref());
+                let input_handle = Handle::from_path(&input_path)
+                    .with_context(|| format!("failed to open file at {input_path:?}"))?;
+
+                let dimensions = match image_links.entry(input_handle) {
+                    Entry::Occupied(entry) => *entry.get(),
                     Entry::Vacant(entry) => {
-                        let html = active_image
-                            .transform_image(input_dir, output_dir, markdown)
+                        let dimensions = convert_image(input_dir, output_dir, &dest_url)
                             .context("failed to process image")?;
-                        entry.insert(html.clone());
-                        html
+                        *entry.insert(dimensions)
                     }
                 };
 
-                active_image_state = None;
+                active_image_state =
+                    Some(ActiveImageState::new(&dest_url, dimensions, &title, &id));
 
+                continue;
+            }
+            Event::End(TagEnd::Image) => {
+                let html = active_image_state.unwrap().into_html(markdown);
+                active_image_state = None;
                 Event::InlineHtml(html.into())
             }
             Event::InlineMath(src) => {
@@ -289,6 +293,8 @@ fn build_article(
 struct ActiveImageState {
     nesting_level: usize,
     url: Box<str>,
+    width: u32,
+    height: u32,
     title: Box<str>,
     id: Box<str>,
     alt_text_range: Range<usize>,
@@ -297,10 +303,13 @@ struct ActiveImageState {
 impl ActiveImageState {
     const INIT_NESTING_LEVEL: usize = 1;
 
-    fn new(url: &str, title: &str, id: &str) -> Self {
+    fn new(url: &str, dimensions: (u32, u32), title: &str, id: &str) -> Self {
+        let (width, height) = dimensions;
         Self {
             nesting_level: Self::INIT_NESTING_LEVEL,
             url: url.into(),
+            width,
+            height,
             title: title.into(),
             id: id.into(),
             alt_text_range: Range {
@@ -332,30 +341,45 @@ impl ActiveImageState {
         }
     }
 
-    fn input_path_handle(&self, input_dir: &Path) -> Result<Handle> {
-        let image_path = input_dir.join(&*self.url);
-
-        Handle::from_path(&image_path)
-            .with_context(|| format!("failed to open file at {image_path:?}"))
-    }
-
-    fn transform_image(
-        self,
-        input_dir: &Path,
-        output_dir: &Path,
-        article_src: &str,
-    ) -> Result<String> {
+    fn into_html(self, article_src: &str) -> String {
         debug_assert_eq!(self.nesting_level, Self::INIT_NESTING_LEVEL - 1);
 
+        let image_src = Utf8Path::new(&self.url).with_extension("avif");
         let alt_text = &article_src[self.alt_text_range];
 
-        process_image(
-            input_dir,
-            output_dir,
-            &self.url,
-            alt_text,
-            &self.title,
-            &self.id,
-        )
+        // Build image HTML representation
+        let mut html = format!(
+            r#"<img src="{image_src}" alt="{alt_text}" width="{}" height="{}" decoding="async" loading="lazy""#,
+            self.width, self.height
+        );
+        if !self.title.is_empty() {
+            html.push_str(&format!(" title=\"{}\"", self.title));
+        }
+        if !self.id.is_empty() {
+            html.push_str(&format!(" id=\"{}\"", self.id));
+        }
+        html.push('>');
+
+        html
     }
+}
+
+fn validate_image_src(url: &str) -> Result<()> {
+    if url.is_empty() {
+        return Err(anyhow!("no source provided for image"));
+    }
+
+    let url = Utf8Path::new(url);
+
+    if !url.is_relative()
+        || url
+            .components()
+            .any(|part| matches!(part, Utf8Component::ParentDir | Utf8Component::Normal("..")))
+    {
+        return Err(anyhow!(
+            "image source is not a normalized relative file path ({url})"
+        ));
+    }
+
+    Ok(())
 }

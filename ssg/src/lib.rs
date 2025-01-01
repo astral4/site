@@ -11,7 +11,7 @@ pub use config::{Config, Fragment};
 pub use css::{transform_css, CssOutput, Font};
 pub use frontmatter::Frontmatter;
 pub use highlight::SyntaxHighlighter;
-pub use image::process_image;
+pub use image::convert_image;
 pub use latex::{LatexConverter, RenderMode};
 
 pub use common::OUTPUT_FONTS_DIR;

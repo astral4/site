@@ -1,7 +1,6 @@
 //! Utility for converting images in articles to AVIF.
 
-use anyhow::{anyhow, Context, Result};
-use camino::{Utf8Component, Utf8Path};
+use anyhow::{Context, Result};
 use image::{codecs::avif::AvifEncoder, GenericImageView, ImageEncoder, ImageReader};
 use std::{
     fs::{copy, File},
@@ -16,41 +15,18 @@ const ENCODER_SPEED: u8 = 10;
 #[cfg(not(debug_assertions))]
 const ENCODER_SPEED: u8 = 1;
 
-/// Processes an image link by converting the linked image to AVIF and saving it to an output path.
-/// This function outputs a string containing an HTML <img> element
-/// with `src`, `alt`, dimension, and rendering attributes.
-/// If the provided `id` is not empty, an `id` attribute is also added.
+/// Converts the image at the input path to AVIF and saves it to an output path.
+/// This function outputs a (width, height) tuple of the image's dimensions.
 ///
 /// # Errors
 /// This function returns an error if:
-/// - the input image path is empty
-/// - the input image path is not normalized or relative
 /// - the file at the input image path cannot be opened or read from
 /// - the file at the output file path cannot be created or written to
-pub fn process_image(
+pub fn convert_image(
     input_article_dir: &Path,
     output_article_dir: &Path,
     image_path: &str,
-    alt_text: &str,
-    title: &str,
-    id: &str,
-) -> Result<String> {
-    if image_path.is_empty() {
-        return Err(anyhow!("no source provided for image"));
-    }
-
-    let image_path = Utf8Path::new(image_path);
-
-    if !image_path.is_relative()
-        || image_path
-            .components()
-            .any(|part| matches!(part, Utf8Component::ParentDir | Utf8Component::Normal("..")))
-    {
-        return Err(anyhow!(
-            "image source is not a normalized relative file path ({image_path})"
-        ));
-    }
-
+) -> Result<(u32, u32)> {
     let input_path = input_article_dir.join(image_path);
     let output_path = output_article_dir.join(image_path).with_extension("avif");
 
@@ -78,19 +54,5 @@ pub fn process_image(
             .with_context(|| format!("failed to write image to {output_path:?}"))?;
     }
 
-    let image_src = image_path.with_extension("avif");
-
-    // Build image HTML representation
-    let mut html = format!(
-        r#"<img src="{image_src}" alt="{alt_text}" width="{width}" height="{height}" decoding="async" loading="lazy""#
-    );
-    if !title.is_empty() {
-        html.push_str(&format!(" title=\"{title}\""));
-    }
-    if !id.is_empty() {
-        html.push_str(&format!(" id=\"{id}\""));
-    }
-    html.push('>');
-
-    Ok(html)
+    Ok((width, height))
 }
