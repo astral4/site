@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Context, Result};
+use camino::Utf8PathBuf;
 use foldhash::{HashMap, HashMapExt, HashSet, HashSetExt};
 use glob::glob;
 use pulldown_cmark::{
@@ -14,7 +15,7 @@ use std::{
     collections::hash_map::Entry,
     fs::{create_dir, create_dir_all, read_to_string, write},
     ops::Range,
-    path::{Path, PathBuf},
+    path::Path,
 };
 
 fn main() -> Result<()> {
@@ -65,14 +66,12 @@ fn main() -> Result<()> {
     let latex_converter =
         LatexConverter::new().context("failed to initialize LaTeX-to-HTML converter")?;
 
-    let article_match_pattern: PathBuf = [config.articles_dir.as_str(), "**", "index.md"]
-        .iter()
+    let article_match_pattern: Utf8PathBuf = [config.articles_dir.as_str(), "**", "index.md"]
+        .into_iter()
         .collect();
 
     // Process all articles
-    for entry in
-        glob(article_match_pattern.to_str().unwrap()).expect("article glob pattern is valid")
-    {
+    for entry in glob(article_match_pattern.as_str()).expect("article glob pattern is valid") {
         let input_article_dir = {
             let mut entry_path = entry.context("failed to access entry in articles directory")?;
             entry_path.pop();
