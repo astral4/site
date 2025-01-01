@@ -97,6 +97,8 @@ impl ActiveImageState {
         attrs.push(("alt", alt_text));
         attrs.push(("width", &width_str));
         attrs.push(("height", &height_str));
+        // Asynchronous image decoding improves the rendering performance of other elements.
+        // https://www.tunetheweb.com/blog/what-does-the-image-decoding-attribute-actually-do/
         attrs.push(("decoding", "async"));
         attrs.push(("loading", "lazy"));
 
