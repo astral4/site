@@ -1,12 +1,16 @@
 //! Utility for converting images in articles to AVIF.
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
+use camino::{Utf8Component, Utf8Path};
 use image::{codecs::avif::AvifEncoder, GenericImageView, ImageEncoder, ImageReader};
 use std::{
     fs::{copy, File},
     io::BufWriter,
+    ops::Range,
     path::Path,
 };
+
+const OUTPUT_FORMAT_EXTENSION: &str = "avif";
 
 // In debug builds, we use the fastest encoding speed for the fastest site build times.
 // In release builds, we use the slowest encoding speed for the best compression.
@@ -14,6 +18,120 @@ use std::{
 const ENCODER_SPEED: u8 = 10;
 #[cfg(not(debug_assertions))]
 const ENCODER_SPEED: u8 = 1;
+
+pub struct ActiveImageState {
+    nesting_level: usize,
+    url: Box<str>,
+    width: u32,
+    height: u32,
+    title: Box<str>,
+    id: Box<str>,
+    alt_text_range: Range<usize>,
+}
+
+impl ActiveImageState {
+    const INIT_NESTING_LEVEL: usize = 1;
+
+    /// Creates a context for tracking the character range of an image's alt text within a piece of Markdown text.
+    #[must_use]
+    pub fn new(url: &str, dimensions: (u32, u32), title: &str, id: &str) -> Self {
+        let (width, height) = dimensions;
+        Self {
+            nesting_level: Self::INIT_NESTING_LEVEL,
+            url: url.into(),
+            width,
+            height,
+            title: title.into(),
+            id: id.into(),
+            alt_text_range: Range {
+                start: usize::MAX,
+                end: usize::MIN,
+            },
+        }
+    }
+
+    /// Increments the nesting level.
+    /// This is used when the start of an image element is encountered within the context.
+    pub fn nest(&mut self) {
+        self.nesting_level += 1;
+    }
+
+    /// Decrements the nesting level.
+    /// This is used when the end of an image element is encountered within the context.
+    pub fn unnest(&mut self) {
+        self.nesting_level -= 1;
+    }
+
+    /// Returns a Boolean indicating if the context has ended.
+    #[must_use]
+    pub fn is_active(&self) -> bool {
+        self.nesting_level >= Self::INIT_NESTING_LEVEL
+    }
+
+    /// Updates the character range of this context's alt text.
+    /// This is used when encountering any item within the context.
+    /// Each item has a character range corresponding to its definition in the Markdown text.
+    pub fn update_alt_text_range(&mut self, range: Range<usize>) {
+        let Range { start, end } = range;
+        if start < self.alt_text_range.start {
+            self.alt_text_range.start = start;
+        }
+        if end > self.alt_text_range.end {
+            self.alt_text_range.end = end;
+        }
+    }
+
+    /// Consumes the context, returning a complete `<img>` element as a string of HTML.
+    #[must_use]
+    pub fn into_html(self, article_src: &str) -> String {
+        debug_assert_eq!(self.nesting_level, Self::INIT_NESTING_LEVEL - 1);
+
+        let image_src = Utf8Path::new(&self.url).with_extension(OUTPUT_FORMAT_EXTENSION);
+        let alt_text = &article_src[self.alt_text_range];
+
+        // Build image HTML representation
+        let mut html = format!(
+            r#"<img src="{image_src}" alt="{alt_text}" width="{}" height="{}" decoding="async" loading="lazy""#,
+            self.width, self.height
+        );
+        if !self.title.is_empty() {
+            html.push_str(&format!(" title=\"{}\"", self.title));
+        }
+        if !self.id.is_empty() {
+            html.push_str(&format!(" id=\"{}\"", self.id));
+        }
+        html.push('>');
+
+        html
+    }
+}
+
+/// Validates the input image source.
+///
+/// # Errors
+/// This function returns an error if:
+/// - the input source is an empty string
+/// - the input source is not a relative path
+/// - the input source is a path with parent-referencing components ("..")
+pub fn validate_image_src(url: &str) -> Result<()> {
+    if url.is_empty() {
+        return Err(anyhow!("no source provided for image"));
+    }
+
+    let url = Utf8Path::new(url);
+
+    if !url.is_relative()
+        || url
+            .components()
+            .any(|part| matches!(part, Utf8Component::ParentDir | Utf8Component::Normal("..")))
+    {
+        return Err(anyhow!(
+            "image source is not a normalized relative file path ({url})"
+        ));
+    }
+
+    Ok(())
+}
 
 /// Converts the image at the input path to AVIF and saves it to an output path.
 /// This function outputs a (width, height) tuple of the image's dimensions.
@@ -28,7 +146,9 @@ pub fn convert_image(
     image_path: &str,
 ) -> Result<(u32, u32)> {
     let input_path = input_article_dir.join(image_path);
-    let output_path = output_article_dir.join(image_path).with_extension("avif");
+    let output_path = output_article_dir
+        .join(image_path)
+        .with_extension(OUTPUT_FORMAT_EXTENSION);
 
     let image = ImageReader::open(&input_path)
         .with_context(|| format!("failed to open file at {input_path:?}"))?
@@ -39,7 +159,10 @@ pub fn convert_image(
 
     // If the input image path ends with ".avif",
     // we assume it is already encoded in AVIF and simply copy it to the output destination.
-    if input_path.extension().is_some_and(|ext| ext == "avif") {
+    if input_path
+        .extension()
+        .is_some_and(|ext| ext == OUTPUT_FORMAT_EXTENSION)
+    {
         copy(&input_path, &output_path).with_context(|| {
             format!("failed to copy file from {input_path:?} to {output_path:?}")
         })?;

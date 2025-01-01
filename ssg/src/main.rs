@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Context, Result};
-use camino::{Utf8Component, Utf8Path, Utf8PathBuf};
+use camino::Utf8PathBuf;
 use foldhash::{HashMap, HashMapExt, HashSet, HashSetExt};
 use glob::glob;
 use pulldown_cmark::{
@@ -7,14 +7,13 @@ use pulldown_cmark::{
 };
 use same_file::Handle;
 use ssg::{
-    convert_image, save_math_assets, transform_css, Config, CssOutput, Fragment, Frontmatter,
-    LatexConverter, PageBuilder, PageKind, RenderMode, SyntaxHighlighter, OUTPUT_CONTENT_DIR,
-    OUTPUT_CSS_DIR, OUTPUT_FONTS_DIR, OUTPUT_SITE_CSS_FILE,
+    convert_image, save_math_assets, transform_css, validate_image_src, ActiveImageState, Config,
+    CssOutput, Fragment, Frontmatter, LatexConverter, PageBuilder, PageKind, RenderMode,
+    SyntaxHighlighter, OUTPUT_CONTENT_DIR, OUTPUT_CSS_DIR, OUTPUT_FONTS_DIR, OUTPUT_SITE_CSS_FILE,
 };
 use std::{
     collections::hash_map::Entry,
     fs::{create_dir, create_dir_all, read_to_string, write},
-    ops::Range,
     path::Path,
 };
 
@@ -288,98 +287,4 @@ fn build_article(
             },
         )
         .context("failed to parse processed article body as valid HTML")
-}
-
-struct ActiveImageState {
-    nesting_level: usize,
-    url: Box<str>,
-    width: u32,
-    height: u32,
-    title: Box<str>,
-    id: Box<str>,
-    alt_text_range: Range<usize>,
-}
-
-impl ActiveImageState {
-    const INIT_NESTING_LEVEL: usize = 1;
-
-    fn new(url: &str, dimensions: (u32, u32), title: &str, id: &str) -> Self {
-        let (width, height) = dimensions;
-        Self {
-            nesting_level: Self::INIT_NESTING_LEVEL,
-            url: url.into(),
-            width,
-            height,
-            title: title.into(),
-            id: id.into(),
-            alt_text_range: Range {
-                start: usize::MAX,
-                end: usize::MIN,
-            },
-        }
-    }
-
-    fn nest(&mut self) {
-        self.nesting_level += 1;
-    }
-
-    fn unnest(&mut self) {
-        self.nesting_level -= 1;
-    }
-
-    fn is_active(&self) -> bool {
-        self.nesting_level >= Self::INIT_NESTING_LEVEL
-    }
-
-    fn update_alt_text_range(&mut self, range: Range<usize>) {
-        let Range { start, end } = range;
-        if start < self.alt_text_range.start {
-            self.alt_text_range.start = start;
-        }
-        if end > self.alt_text_range.end {
-            self.alt_text_range.end = end;
-        }
-    }
-
-    fn into_html(self, article_src: &str) -> String {
-        debug_assert_eq!(self.nesting_level, Self::INIT_NESTING_LEVEL - 1);
-
-        let image_src = Utf8Path::new(&self.url).with_extension("avif");
-        let alt_text = &article_src[self.alt_text_range];
-
-        // Build image HTML representation
-        let mut html = format!(
-            r#"<img src="{image_src}" alt="{alt_text}" width="{}" height="{}" decoding="async" loading="lazy""#,
-            self.width, self.height
-        );
-        if !self.title.is_empty() {
-            html.push_str(&format!(" title=\"{}\"", self.title));
-        }
-        if !self.id.is_empty() {
-            html.push_str(&format!(" id=\"{}\"", self.id));
-        }
-        html.push('>');
-
-        html
-    }
-}
-
-fn validate_image_src(url: &str) -> Result<()> {
-    if url.is_empty() {
-        return Err(anyhow!("no source provided for image"));
-    }
-
-    let url = Utf8Path::new(url);
-
-    if !url.is_relative()
-        || url
-            .components()
-            .any(|part| matches!(part, Utf8Component::ParentDir | Utf8Component::Normal("..")))
-    {
-        return Err(anyhow!(
-            "image source is not a normalized relative file path ({url})"
-        ));
-    }
-
-    Ok(())
 }
