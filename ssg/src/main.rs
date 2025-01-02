@@ -59,7 +59,7 @@ fn main() -> Result<()> {
     let mut article_slugs = HashSet::new();
 
     // Initialize syntax highlighter for article text
-    let syntax_highlighter = SyntaxHighlighter::new();
+    let syntax_highlighter = SyntaxHighlighter::new(&config.theme);
 
     // Initialize LaTeX-to-HTML converter for article text
     let latex_converter =

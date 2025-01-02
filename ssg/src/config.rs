@@ -1,5 +1,6 @@
 //! Code for reading app configuration from a TOML file. The configuration file path is supplied via the command line.
 
+use crate::highlight::THEME_NAMES;
 use anyhow::{anyhow, Context, Result};
 use camino::Utf8Path;
 use foldhash::{HashSet, HashSetExt};
@@ -20,6 +21,8 @@ pub struct Config {
     // List of titles and paths for all webpage fragment files;
     // for non-article pages like the site index and the "about" page
     pub fragments: Box<[Fragment]>,
+    // Name of theme for code syntax highlighting
+    pub theme: Box<str>,
     // Path to directory containing all articles
     pub articles_dir: Box<Utf8Path>,
 }
@@ -57,15 +60,15 @@ impl Config {
         )
         .context("failed to parse configuration file")?;
 
-        config
-            .check_paths()
-            .context("configuration file is invalid")?;
+        config.validate().context("configuration file is invalid")?;
 
         Ok(config)
     }
 
-    fn check_paths(&self) -> Result<()> {
-        if self.output_dir.is_dir() {
+    fn validate(&self) -> Result<()> {
+        if !THEME_NAMES.contains(&self.theme) {
+            Err(anyhow!("`theme`: {} is an invalid theme name", self.theme))
+        } else if self.output_dir.is_dir() {
             Err(anyhow!(
                 "`output_dir`: {:?} already exists as a directory",
                 self.output_dir

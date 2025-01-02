@@ -22,6 +22,7 @@ include_dir = "0.7.4"
 jiff = { version = "0.1.16", default-features = false, features = ["alloc", "std"] }
 lightningcss = { version = "1.0.0-alpha.61", default-features = false, features = ["browserslist", "grid", "into_owned"] }
 markup5ever = "0.14.0"
+phf = { version = "0.11.2", features = ["macros"] }
 pulldown-cmark = { version = "0.12.2", default-features = false, features = ["html", "simd"] }
 rquickjs = { version = "0.8.1", features = ["parallel", "rust-alloc"] }
 same-file = "1.0.6"

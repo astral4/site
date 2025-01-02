@@ -2093,6 +2093,7 @@ dependencies = [
  "jiff",
  "lightningcss",
  "markup5ever",
+ "phf",
  "pulldown-cmark",
  "rquickjs",
  "same-file",
