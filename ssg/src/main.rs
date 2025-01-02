@@ -65,11 +65,11 @@ fn main() -> Result<()> {
     let latex_converter =
         LatexConverter::new().context("failed to initialize LaTeX-to-HTML converter")?;
 
+    // Process all articles
     let article_match_pattern: Utf8PathBuf = [config.articles_dir.as_str(), "**", "index.md"]
         .into_iter()
         .collect();
 
-    // Process all articles
     for entry in glob(article_match_pattern.as_str()).expect("article glob pattern is valid") {
         let input_article_dir = {
             let mut entry_path = entry.context("failed to access entry in articles directory")?;
@@ -202,7 +202,7 @@ fn build_article(
                 state.update_alt_text_range(offset);
             } else {
                 let html = active_image_state.unwrap().into_html(markdown);
-                events.push(Event::InlineHtml(html.into()));
+                events.push(html_to_event(html));
                 active_image_state = None;
             }
 
@@ -223,9 +223,13 @@ fn build_article(
                 event
             }
             Event::Text(text) if is_in_code_block => syntax_highlighter
-                .highlight(&text, code_language.as_deref())
-                .context("failed to highlight text block")
-                .map(|html| Event::InlineHtml(html.into()))?,
+                .highlight_block(&text, code_language.as_deref())
+                .context("failed to highlight code block")
+                .map(html_to_event)?,
+            Event::Code(text) => syntax_highlighter
+                .highlight_segment(&text)
+                .context("failed to highlight inline code segment")
+                .map(html_to_event)?,
             Event::Start(Tag::Image {
                 dest_url,
                 title,
@@ -240,6 +244,7 @@ fn build_article(
                 let input_handle = Handle::from_path(&input_path)
                     .with_context(|| format!("failed to open file at {input_path:?}"))?;
 
+                // Check if image has already been processed
                 let dimensions = match image_links.entry(input_handle) {
                     Entry::Occupied(entry) => *entry.get(),
                     Entry::Vacant(entry) => {
@@ -259,14 +264,14 @@ fn build_article(
                 latex_converter
                     .latex_to_html(&src, RenderMode::Inline)
                     .context("failed to convert LaTeX to HTML")
-                    .map(|html| Event::InlineHtml(html.into()))?
+                    .map(html_to_event)?
             }
             Event::DisplayMath(src) => {
                 contains_math = true;
                 latex_converter
                     .latex_to_html(&src, RenderMode::Display)
                     .context("failed to convert LaTeX to HTML")
-                    .map(|html| Event::InlineHtml(html.into()))?
+                    .map(html_to_event)?
             }
             _ => event,
         });
@@ -288,4 +293,8 @@ fn build_article(
             },
         )
         .context("failed to parse processed article body as valid HTML")
+}
+
+fn html_to_event<'a>(html: String) -> Event<'a> {
+    Event::InlineHtml(html.into())
 }
