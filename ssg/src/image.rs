@@ -33,7 +33,7 @@ pub struct ActiveImageState {
 impl ActiveImageState {
     const INIT_NESTING_LEVEL: usize = 1;
 
-    /// Creates a context for tracking the character range of an image's alt text within a piece of Markdown text.
+    /// Creates a context for tracking the character range of an image's alt text within a Markdown source.
     #[must_use]
     pub fn new(url: &str, dimensions: (u32, u32), title: &str, id: &str) -> Self {
         let (width, height) = dimensions;
@@ -70,8 +70,8 @@ impl ActiveImageState {
     }
 
     /// Updates the character range of this context's alt text.
-    /// This is used when encountering any item within the context.
-    /// Each item has a character range corresponding to its definition in the Markdown text.
+    /// This is used when encountering any item within the context;
+    /// every item has a character range corresponding to its location in the Markdown text.
     pub fn update_alt_text_range(&mut self, range: Range<usize>) {
         let Range { start, end } = range;
         if start < self.alt_text_range.start {
@@ -83,12 +83,13 @@ impl ActiveImageState {
     }
 
     /// Consumes the context, returning a complete `<img>` element as a string of HTML.
+    /// The input Markdown source is used for retrieving the image's alt text.
     #[must_use]
-    pub fn into_html(self, article_src: &str) -> String {
+    pub fn into_html(self, markdown_source: &str) -> String {
         debug_assert_eq!(self.nesting_level, Self::INIT_NESTING_LEVEL - 1);
 
         let image_src = Utf8Path::new(&self.url).with_extension(OUTPUT_FORMAT_EXTENSION);
-        let alt_text = &article_src[self.alt_text_range];
+        let alt_text = &markdown_source[self.alt_text_range];
         let (width_str, height_str) = (self.width.to_string(), self.height.to_string());
 
         // Build image HTML representation
