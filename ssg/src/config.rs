@@ -4,6 +4,7 @@ use crate::highlight::THEME_NAMES;
 use anyhow::{anyhow, Context, Result};
 use camino::Utf8Path;
 use foldhash::{HashSet, HashSetExt};
+use same_file::Handle;
 use serde::Deserialize;
 use std::{env::args, ffi::OsStr, fs::read_to_string, path::Path};
 use toml_edit::de::from_str as toml_from_str;
@@ -16,7 +17,7 @@ macro_rules! transform_paths {
                 // We expect the parent to exist because otherwise
                 // the config path does not point to a file and cannot be read from
                 .expect("config file path should have parent")
-                .join($config.$field_path)
+                .join(&$config.$field_path)
                 .into_boxed_path();
         )*
     };
@@ -84,6 +85,9 @@ impl Config {
             &config_path,
             [output_dir: Path, site_css_file: Path, template_html_file: Path, articles_dir: Utf8Path]
         );
+        for fragment in &mut config.fragments {
+            transform_paths!(fragment, &config_path, [path: Path]);
+        }
 
         // Validate config settings
         config.validate().context("configuration file is invalid")?;
@@ -101,34 +105,38 @@ impl Config {
             ))
         } else if !self.articles_dir.is_dir() {
             Err(anyhow!(
-                "`articles_dir`: {:?} does not point to a directory",
+                "`articles_dir`: {:?} could not be opened or does not point to a directory",
                 self.articles_dir
             ))
         } else if !self.site_css_file.is_file() {
             Err(anyhow!(
-                "`site_css_file`: {:?} does not point to a file",
+                "`site_css_file`: {:?} could not be opened or does not point to a file",
                 self.site_css_file
             ))
         } else if !self.template_html_file.is_file() {
             Err(anyhow!(
-                "`template_html_file`: {:?} does not point to a file",
+                "`template_html_file`: {:?} could not be opened or does not point to a file",
                 self.template_html_file
             ))
         } else {
             let mut fragment_paths = HashSet::with_capacity(self.fragments.len());
 
             for fragment in &self.fragments {
-                if !fragment.path.is_file() {
-                    return Err(anyhow!(
-                        "`fragments`: {:?} does not point to a file",
-                        fragment.path
-                    ));
-                }
                 if fragment.path.file_stem().is_none_or(OsStr::is_empty) {
                     return Err(anyhow!("`fragments`: empty file name found"));
                 }
-                if !fragment_paths.insert(&fragment.path) {
-                    return Err(anyhow!("`fragments`: duplicate fragment paths found"));
+
+                let handle = Handle::from_path(&fragment.path).with_context(|| {
+                    format!(
+                        "`fragments`: {:?} could not be opened or does not point to a file",
+                        fragment.path
+                    )
+                })?;
+
+                if !fragment_paths.insert(handle) {
+                    return Err(anyhow!(
+                        "`fragments`: found multiple fragment paths pointing to the same file"
+                    ));
                 }
             }
 
