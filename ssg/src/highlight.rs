@@ -2,10 +2,16 @@
 
 use anyhow::{anyhow, Result};
 use phf::{phf_set, Set};
+use std::borrow::Cow;
 use syntect::{
+    easy::HighlightLines,
     highlighting::{FontStyle, Style, Theme, ThemeSet, ThemeSettings},
-    html::{highlighted_html_for_string, styled_line_to_highlighted_html, IncludeBackground},
+    html::{
+        append_highlighted_html_for_styled_line, start_highlighted_html_snippet,
+        styled_line_to_highlighted_html, IncludeBackground,
+    },
     parsing::SyntaxSet,
+    util::LinesWithEndings,
 };
 
 // Names of themes in the default theme set
@@ -55,6 +61,7 @@ impl SyntaxHighlighter {
     /// - no syntax can be found for the provided language
     /// - `syntect` fails to highlight the provided text
     pub fn highlight_block(&self, text: &str, language: Option<&str>) -> Result<String> {
+        // Find language syntax
         let syntax = match language {
             Some(lang) if !lang.is_empty() => {
                 self.syntaxes.find_syntax_by_token(lang).ok_or_else(|| {
@@ -64,7 +71,41 @@ impl SyntaxHighlighter {
             _ => self.syntaxes.find_syntax_plain_text(),
         };
 
-        highlighted_html_for_string(text, &self.syntaxes, syntax, &self.theme).map_err(Into::into)
+        // Highlight line by line
+        let mut highlighter = HighlightLines::new(syntax, &self.theme);
+        let (mut output, background) = start_highlighted_html_snippet(&self.theme);
+
+        for line in LinesWithEndings::from(text) {
+            // Replace starting tabs with spaces (1 tab = 4 spaces)
+            let num_starting_whitespace_bytes: usize = line
+                .chars()
+                .take_while(|c| c.is_whitespace())
+                .map(char::len_utf8)
+                .sum();
+
+            let line = if num_starting_whitespace_bytes > 0 {
+                let (whitespace, remaining) = line.split_at(num_starting_whitespace_bytes);
+                let mut line = whitespace.replace('\t', "    ");
+                line.reserve_exact(remaining.len());
+                line.push_str(remaining);
+                Cow::Owned(line)
+            } else {
+                Cow::Borrowed(line)
+            };
+
+            // Highlight line
+            let regions = highlighter.highlight_line(&line, &self.syntaxes)?;
+            append_highlighted_html_for_styled_line(
+                &regions,
+                IncludeBackground::IfDifferent(background),
+                &mut output,
+            )?;
+        }
+
+        // Add closing tag; the opening tag was added in `start_highlighted_html_snippet()`
+        output.push_str("</pre>");
+
+        Ok(output)
     }
 
     /// Adds plaintext highlighting to an inline code segment, outputting HTML with inline styles.
@@ -154,6 +195,39 @@ mod test {
                     .highlight_block("", Some("klingon"))
                     .is_err(),
                 "syntax detection for non-existent language should fail"
+            );
+        }
+    }
+
+    #[test]
+    fn tabs_to_spaces() {
+        const TEXT_SPACES: &str = "
+abc
+    abc
+        abc
+     abc
+     abc
+          abc
+";
+        const TEXT_TABS: &str = "
+abc
+\tabc
+\t\tabc
+\t abc
+ \tabc
+ \t \tabc
+";
+
+        for theme in &THEME_NAMES {
+            let highlighter = SyntaxHighlighter::new(theme);
+
+            assert_eq!(
+                highlighter
+                    .highlight_block(TEXT_SPACES, None)
+                    .expect("highlighting should succeed"),
+                highlighter
+                    .highlight_block(TEXT_TABS, None)
+                    .expect("highlighting should succeed"),
             );
         }
     }
