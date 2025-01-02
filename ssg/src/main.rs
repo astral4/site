@@ -46,7 +46,7 @@ fn main() -> Result<()> {
         .context("failed to read site HTML template file")?;
 
     // Create page builder (template for every page)
-    let page_builder = PageBuilder::new(&config.name, &top_fonts, &template_text)
+    let page_builder = PageBuilder::new(&config.author, &top_fonts, &template_text)
         .context("failed to process site HTML template")?;
 
     // Process all fragment files

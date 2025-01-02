@@ -25,8 +25,8 @@ macro_rules! transform_paths {
 
 #[derive(Deserialize)]
 pub struct Config {
-    // Your full name
-    pub name: Box<str>,
+    // Name of the website author
+    pub author: Box<str>,
     // Path to directory for generated site output
     pub output_dir: Box<Path>,
     // Path to site-wide CSS file
