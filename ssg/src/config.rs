@@ -1,4 +1,4 @@
-//! Code for reading app configuration from a TOML file. The configuration file path is supplied via the command line.
+//! Code for reading the app config from a TOML file. The config file path is supplied via the command line.
 
 use crate::highlight::THEME_NAMES;
 use anyhow::{anyhow, Context, Result};
@@ -7,6 +7,20 @@ use foldhash::{HashSet, HashSetExt};
 use serde::Deserialize;
 use std::{env::args, ffi::OsStr, fs::read_to_string, path::Path};
 use toml_edit::de::from_str as toml_from_str;
+
+macro_rules! transform_paths {
+    ($config:expr, $base_path:expr, [$( $field_path:ident: $path_ty:ty ),*]) => {
+        $(
+            $config.$field_path = <$path_ty>::new($base_path)
+                .parent()
+                // We expect the parent to exist because otherwise
+                // the config path does not point to a file and cannot be read from
+                .expect("config file path should have parent")
+                .join($config.$field_path)
+                .into_boxed_path();
+        )*
+    };
+}
 
 #[derive(Deserialize)]
 pub struct Config {
@@ -42,8 +56,11 @@ impl Config {
     /// - too many command-line arguments are provided
     /// - a config parameter interpreted as a directory path does not point to a directory
     /// - a config parameter interpreted as a file path does not point to a file
-    /// - the output directory path and another path in the config point to the same location
+    ///
+    /// # Panics
+    /// This function panics if the provided config file path has no parent.
     pub fn from_env() -> Result<Self> {
+        // Get path to config file from command-line arguments
         let mut args = args().skip(1);
 
         let config_path = args
@@ -54,12 +71,21 @@ impl Config {
             return Err(anyhow!("too many input arguments were provided"));
         }
 
-        let config: Self = toml_from_str(
+        // Parse config
+        let mut config: Self = toml_from_str(
             &read_to_string(&config_path)
                 .with_context(|| format!("failed to read configuration from {config_path}"))?,
         )
         .context("failed to parse configuration file")?;
 
+        // Interpret relative paths in the config as relative to the config file's location
+        transform_paths!(
+            config,
+            &config_path,
+            [output_dir: Path, site_css_file: Path, template_html_file: Path, articles_dir: Utf8Path]
+        );
+
+        // Validate config settings
         config.validate().context("configuration file is invalid")?;
 
         Ok(config)
