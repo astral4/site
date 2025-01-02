@@ -179,7 +179,7 @@ pub(crate) fn create_img_html(attrs: &[(&str, &str)]) -> String {
 fn parse_html(input: &str) -> Result<Tree<Node>> {
     let html = Html::parse_fragment(input);
 
-    // `Html::parse_fragment()` doesn't return a `Result` because
+    // `Html::parse_fragment()` does not return a `Result` because
     // the parser is supposed to be resilient and fall back to HTML quirks mode upon encountering errors.
     // So, after parsing, we have to check for any errors encountered ourselves.
     match html.errors.first() {

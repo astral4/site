@@ -37,12 +37,12 @@ impl SyntaxHighlighter {
         let syntaxes = SyntaxSet::load_defaults_newlines();
 
         // To obtain an owned `Theme`, we call `BTreeMap::remove()` instead of `BTreeMap::get()`.
-        // This is fine because we don't care about the entire `ThemeSet`.
-        // (Anyway, if we needed the entire `ThemeSet`, we could just call `ThemeSet::load_defaults()` again.)
+        // This is fine because we do not need the entire `ThemeSet` after this.
+        // (If we did, we could just call `ThemeSet::load_defaults()` again.)
         let theme = ThemeSet::load_defaults()
             .themes
             .remove(theme)
-            .unwrap_or_else(|| panic!("default theme set should include {theme}"));
+            .unwrap_or_else(|| panic!("default theme set should include \"{theme}\""));
 
         Self { syntaxes, theme }
     }
@@ -82,7 +82,7 @@ impl SyntaxHighlighter {
         } = self.theme.settings
         else {
             panic!(
-                "{} should contain default text and background colors",
+                "\"{}\" should contain default text and background colors",
                 self.theme.name.as_deref().unwrap_or("selected theme"),
             );
         };

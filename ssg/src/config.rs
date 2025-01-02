@@ -57,6 +57,7 @@ impl Config {
     /// - too many command-line arguments are provided
     /// - a config parameter interpreted as a directory path does not point to a directory
     /// - a config parameter interpreted as a file path does not point to a file
+    /// - multiple fragment paths point to the same file
     ///
     /// # Panics
     /// This function panics if the provided config file path has no parent.
