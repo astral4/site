@@ -7,9 +7,10 @@ use pulldown_cmark::{
 };
 use same_file::Handle;
 use ssg::{
-    convert_image, save_math_assets, transform_css, validate_image_src, ActiveImageState, Config,
-    CssOutput, Fragment, Frontmatter, LatexConverter, PageBuilder, PageKind, RenderMode,
-    SyntaxHighlighter, OUTPUT_CONTENT_DIR, OUTPUT_CSS_DIR, OUTPUT_FONTS_DIR, OUTPUT_SITE_CSS_FILE,
+    convert_image, save_math_assets, transform_css, validate_image_src, ActiveImageState,
+    ArchiveBuilder, Config, CssOutput, Fragment, Frontmatter, LatexConverter, PageBuilder,
+    PageKind, RenderMode, SyntaxHighlighter, OUTPUT_CONTENT_DIR, OUTPUT_CSS_DIR, OUTPUT_FONTS_DIR,
+    OUTPUT_SITE_CSS_FILE,
 };
 use std::{
     collections::hash_map::Entry,
@@ -57,6 +58,9 @@ fn main() -> Result<()> {
 
     // Check for duplicate slugs from articles' frontmatter so every article has a unique output directory
     let mut article_slugs = HashSet::new();
+
+    // Build a page linking to all articles
+    let mut archive_builder = ArchiveBuilder::new();
 
     // Initialize syntax highlighter for article text
     let syntax_highlighter = SyntaxHighlighter::new(&config.theme);
@@ -127,10 +131,24 @@ fn main() -> Result<()> {
                 format!("failed to write article HTML to {output_article_path:?}")
             })?;
 
+            archive_builder.add_article(
+                article_frontmatter.title,
+                article_frontmatter.slug,
+                article_frontmatter.created,
+            );
+
             Ok(())
         })()
         .with_context(|| format!("failed to process article from {input_article_dir:?}"))?;
     }
+
+    let archive_html = archive_builder.into_html(&page_builder);
+    let output_path = config
+        .output_dir
+        .join(OUTPUT_CONTENT_DIR)
+        .join("index.html");
+    write(&output_path, archive_html)
+        .with_context(|| format!("failed to write article archive HTML to {output_path:?}"))?;
 
     Ok(())
 }

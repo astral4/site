@@ -107,9 +107,11 @@ impl PageBuilder {
     /// # Errors
     /// This function returns an error if the input body cannot be successfully parsed as no-quirks HTML.
     pub fn build_page(&self, title: &str, body: &str, kind: PageKind) -> Result<String> {
-        // Parse body into tree of HTML nodes
         let body = parse_html(body)?;
+        Ok(self.build_page_inner(title, body, kind))
+    }
 
+    fn build_page_inner(&self, title: &str, body: Tree<Node>, kind: PageKind) -> String {
         let mut html = self.html.clone();
 
         // Add `<title>` within `<head>`
@@ -145,7 +147,7 @@ impl PageBuilder {
                 &mut slot_node,
                 tree! {
                     Node::Fragment => { Node::Fragment => {
-                        create_el_with_attrs("div", &[("class", "article-heading")]) => {
+                        create_el_with_attrs("div", &[("class", "__article-heading")]) => {
                             create_el("h1") => { create_text(title) },
                             create_el("p") => { create_text(&date_string) }
                         }
@@ -157,7 +159,7 @@ impl PageBuilder {
         append_fragment(&mut slot_node, body);
 
         // Serialize document tree
-        Ok(tree_to_html(html))
+        tree_to_html(html)
     }
 }
 
@@ -174,6 +176,70 @@ pub enum PageKind {
 /// Returns an `<img>` element with the provided attributes as a string of HTML.
 pub(crate) fn create_img_html(attrs: &[(&str, &str)]) -> String {
     tree_to_html(tree! { create_el_with_attrs("img", attrs) })
+}
+
+pub struct ArchiveBuilder(Vec<ArticlePreview>);
+
+struct ArticlePreview {
+    title: Box<str>,
+    slug: Box<str>,
+    created: Date,
+}
+
+impl ArchiveBuilder {
+    /// Initializes a writing archive page builder.
+    /// The page includes a list of all articles in reverse chronological order.
+    #[must_use]
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+
+    /// Adds an article's metadata (title, slug, and creation date) to the builder.
+    pub fn add_article(&mut self, title: Box<str>, slug: Box<str>, created: Date) {
+        self.0.push(ArticlePreview {
+            title,
+            slug,
+            created,
+        });
+    }
+
+    /// Consumes the builder, outputting a string containing a complete HTML document for the archive page.
+    pub fn into_html(mut self, builder: &PageBuilder) -> String {
+        const TITLE: &str = "Writing";
+
+        // Add heading section with title and page description
+        let mut html = tree! { Node::Fragment };
+
+        let mut root_node = html.root_mut();
+        let mut root_node = root_node.append_subtree(tree! {
+            Node::Fragment => {
+                create_el("h1") => { create_text(TITLE) },
+                create_el("p") => { create_text("Posts are in reverse chronological order.") },
+            }
+        });
+
+        // Sort articles by creation date in reverse chronological order
+        self.0.sort_unstable_by(|a, b| b.created.cmp(&a.created));
+
+        // Add list of articles
+        let mut list_node = root_node.append(create_el_with_attrs(
+            "ol",
+            &[("reversed", ""), ("class", "__article-list")],
+        ));
+
+        for article in self.0 {
+            list_node.append_subtree(tree! {
+                create_el("li") => {
+                    create_el("p") => { create_text(&article.created.to_string()) },
+                    create_el_with_attrs("a", &[("href", &article.slug)]) => {
+                        create_el("p") => { create_text(&article.title) }
+                    }
+                }
+            });
+        }
+
+        builder.build_page_inner(TITLE, html, PageKind::Fragment)
+    }
 }
 
 fn parse_html(input: &str) -> Result<Tree<Node>> {

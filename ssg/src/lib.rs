@@ -6,7 +6,7 @@ mod highlight;
 mod image;
 mod latex;
 
-pub use builder::{PageBuilder, PageKind};
+pub use builder::{ArchiveBuilder, PageBuilder, PageKind};
 pub use config::{Config, Fragment};
 pub use css::{transform_css, CssOutput, Font};
 pub use frontmatter::Frontmatter;
