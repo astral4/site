@@ -209,11 +209,10 @@ fn build_article(
         .into_offset_iter(),
     ) {
         if let Some(state) = active_image_state.as_mut() {
-            if matches!(event, Event::Start(Tag::Image { .. })) {
-                state.nest();
-            }
-            if matches!(event, Event::End(TagEnd::Image)) {
-                state.unnest();
+            match event {
+                Event::Start(Tag::Image { .. }) => state.nest(),
+                Event::End(TagEnd::Image) => state.unnest(),
+                _ => {}
             }
 
             if state.is_active() {
