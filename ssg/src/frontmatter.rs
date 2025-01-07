@@ -114,6 +114,9 @@ mod test {
         )
         .is_err());
         assert!(
+            Frontmatter::from_text("---\ntitle: abc\nslug: def\ncreated: 2000-1-1\n---").is_err()
+        );
+        assert!(
             Frontmatter::from_text("---\ntitle: abc\nslug: def\ncreated: 2000-02-30\n---").is_err()
         );
     }
