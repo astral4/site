@@ -175,7 +175,7 @@ pub enum PageKind {
 
 /// Returns an `<img>` element with the provided attributes as a string of HTML.
 pub(crate) fn create_img_html(attrs: &[(&str, &str)]) -> String {
-    tree_to_html(tree! { create_el_with_attrs("img", attrs) })
+    tree_to_html(Tree::new(create_el_with_attrs("img", attrs)))
 }
 
 pub struct ArchiveBuilder(Vec<ArticlePreview>);
@@ -208,7 +208,7 @@ impl ArchiveBuilder {
         const TITLE: &str = "Writing";
 
         // Add heading section with title and page description
-        let mut html = tree! { Node::Fragment };
+        let mut html = Tree::new(Node::Fragment);
 
         let mut root_node = html.root_mut();
         let mut root_node = root_node.append_subtree(tree! {
