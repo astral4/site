@@ -132,28 +132,61 @@ impl PageBuilder {
         // Add page content within template slot
         // SAFETY: The ID is valid because it was generated in the constructor `PageBuilder::new()`.
         let mut slot_node = unsafe { html.get_unchecked_mut(self.slot_id) };
+        let mut slot_node = match kind {
+            PageKind::Fragment => slot_node,
+            PageKind::Article { .. } => slot_node.append(create_el("article")),
+        };
 
         // Add heading section with title and created/last-updated dates for article pages
         if let PageKind::Article {
             created, updated, ..
         } = kind
         {
-            let date_string = match updated {
-                Some(updated) => format!("{created} (last updated {updated})"),
-                None => created.to_string(),
+            let created_date_string = created.to_string();
+
+            let mut heading_section_tree = tree! {
+                Node::Fragment => { Node::Fragment => {
+                    create_el_with_attrs("hgroup", &[("class", "__article-heading")]) => {
+                        create_el("h1") => {
+                            create_text(title)
+                        },
+                        create_el("p") => {
+                            create_el_with_attrs("time", &[("datetime", &created_date_string)]) => {
+                                create_text(&created_date_string)
+                            }
+                        },
+                    }
+                }}
             };
 
-            append_fragment(
-                &mut slot_node,
-                tree! {
-                    Node::Fragment => { Node::Fragment => {
-                        create_el_with_attrs("div", &[("class", "__article-heading")]) => {
-                            create_el("h1") => { create_text(title) },
-                            create_el("p") => { create_text(&date_string) }
-                        }
-                    }}
-                },
-            );
+            // Add last-updated date if it exists
+            if let Some(updated) = updated {
+                // Find the root node of the dates section (`<p>`)
+                let date_section_root_id = heading_section_tree
+                    .nodes()
+                    .find(|node| node.value().as_element().is_some_and(|el| el.name() == "p"))
+                    .unwrap()
+                    .id();
+
+                // SAFETY: Indexing is guaranteed to be valid because the ID was obtained from searching the tree nodes.
+                let mut date_section_root =
+                    unsafe { heading_section_tree.get_unchecked_mut(date_section_root_id) };
+
+                let updated_date_string = updated.to_string();
+
+                // Add last-updated date
+                date_section_root.append_subtree(tree! {
+                    Node::Fragment => {
+                        create_text(" (last updated "),
+                        create_el_with_attrs("time", &[("datetime", &updated_date_string)]) => {
+                            create_text(&updated_date_string)
+                        },
+                        create_text(")"),
+                    }
+                });
+            }
+
+            append_fragment(&mut slot_node, heading_section_tree);
         }
 
         append_fragment(&mut slot_node, body);
