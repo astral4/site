@@ -261,9 +261,13 @@ impl ArchiveBuilder {
         ));
 
         for article in self.0 {
+            let date_string = article.created.to_string();
+
             list_node.append_subtree(tree! {
                 create_el("li") => {
-                    create_el("p") => { create_text(&article.created.to_string()) },
+                    create_el("p") => {
+                        create_el_with_attrs("time", &[("datetime", &date_string)]) => { create_text(&date_string) }
+                    },
                     create_el_with_attrs("a", &[("href", &article.slug)]) => {
                         create_el("p") => { create_text(&article.title) }
                     }
