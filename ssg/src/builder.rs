@@ -255,9 +255,14 @@ impl ArchiveBuilder {
         self.0.sort_unstable_by(|a, b| b.created.cmp(&a.created));
 
         // Add list of articles
+        // We add `role="list"` to `<ol>` because of https://bugs.webkit.org/show_bug.cgi?id=170179
         let mut list_node = root_node.append(create_el_with_attrs(
             "ol",
-            &[("reversed", ""), ("class", "__article-list")],
+            &[
+                ("reversed", ""),
+                ("class", "__article-list"),
+                ("role", "list"),
+            ],
         ));
 
         for article in self.0 {
