@@ -251,8 +251,9 @@ impl ArchiveBuilder {
             }
         });
 
-        // Sort articles by creation date in reverse chronological order
-        self.0.sort_unstable_by(|a, b| b.created.cmp(&a.created));
+        // Sort articles by creation date in reverse chronological order, then by title in reverse lexicographical order
+        self.0
+            .sort_unstable_by(|a, b| b.created.cmp(&a.created).then(b.title.cmp(&a.title)));
 
         // Add list of articles
         // We add `role="list"` to `<ol>` because of https://bugs.webkit.org/show_bug.cgi?id=170179
