@@ -1,7 +1,7 @@
 //! Code for reading the app config from a TOML file. The config file path is supplied via the command line.
 
 use crate::highlight::THEME_NAMES;
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use camino::Utf8Path;
 use foldhash::{HashSet, HashSetExt};
 use same_file::Handle;
@@ -70,7 +70,7 @@ impl Config {
             .ok_or_else(|| anyhow!("configuration file path was not provided"))?;
 
         if args.next().is_some() {
-            return Err(anyhow!("too many input arguments were provided"));
+            bail!("too many input arguments were provided");
         }
 
         // Parse config
@@ -98,50 +98,49 @@ impl Config {
 
     fn validate(&self) -> Result<()> {
         if !THEME_NAMES.contains(&self.theme) {
-            Err(anyhow!("`theme`: {} is an invalid theme name", self.theme))
+            bail!("`theme`: {} is an invalid theme name", self.theme);
         } else if self.output_dir.is_dir() {
-            Err(anyhow!(
+            bail!(
                 "`output_dir`: {:?} already exists as a directory",
                 self.output_dir
-            ))
+            );
         } else if !self.articles_dir.is_dir() {
-            Err(anyhow!(
+            bail!(
                 "`articles_dir`: {:?} could not be opened or does not point to a directory",
                 self.articles_dir
-            ))
+            );
         } else if !self.site_css_file.is_file() {
-            Err(anyhow!(
+            bail!(
                 "`site_css_file`: {:?} could not be opened or does not point to a file",
                 self.site_css_file
-            ))
+            );
         } else if !self.template_html_file.is_file() {
-            Err(anyhow!(
+            bail!(
                 "`template_html_file`: {:?} could not be opened or does not point to a file",
                 self.template_html_file
-            ))
-        } else {
-            let mut fragment_paths = HashSet::with_capacity(self.fragments.len());
+            );
+        }
 
-            for fragment in &self.fragments {
-                if fragment.path.file_stem().is_none_or(OsStr::is_empty) {
-                    return Err(anyhow!("`fragments`: empty file name found"));
-                }
+        // Validate `fragments` field
+        let mut fragment_paths = HashSet::with_capacity(self.fragments.len());
 
-                let handle = Handle::from_path(&fragment.path).with_context(|| {
-                    format!(
-                        "`fragments`: {:?} could not be opened or does not point to a file",
-                        fragment.path
-                    )
-                })?;
-
-                if !fragment_paths.insert(handle) {
-                    return Err(anyhow!(
-                        "`fragments`: found multiple fragment paths pointing to the same file"
-                    ));
-                }
+        for fragment in &self.fragments {
+            if fragment.path.file_stem().is_none_or(OsStr::is_empty) {
+                bail!("`fragments`: empty file name found");
             }
 
-            Ok(())
+            let handle = Handle::from_path(&fragment.path).with_context(|| {
+                format!(
+                    "`fragments`: {:?} could not be opened or does not point to a file",
+                    fragment.path
+                )
+            })?;
+
+            if !fragment_paths.insert(handle) {
+                bail!("`fragments`: found multiple fragment paths pointing to the same file");
+            }
         }
+
+        Ok(())
     }
 }

@@ -1,7 +1,7 @@
 //! Utility for converting images in articles to AVIF.
 
 use crate::builder::create_img_html;
-use anyhow::{anyhow, Context, Result};
+use anyhow::{bail, Context, Result};
 use camino::{Utf8Component, Utf8Path};
 use image::{codecs::avif::AvifEncoder, GenericImageView, ImageEncoder, ImageReader};
 use std::{
@@ -123,7 +123,7 @@ impl ActiveImageState {
 /// - the input source is a path with parent-referencing components ("..")
 pub fn validate_image_src(url: &str) -> Result<()> {
     if url.is_empty() {
-        return Err(anyhow!("no source provided for image"));
+        bail!("no source provided for image");
     }
 
     let url = Utf8Path::new(url);
@@ -133,9 +133,7 @@ pub fn validate_image_src(url: &str) -> Result<()> {
             .components()
             .any(|part| matches!(part, Utf8Component::ParentDir | Utf8Component::Normal("..")))
     {
-        return Err(anyhow!(
-            "image source is not a normalized relative file path ({url})"
-        ));
+        bail!("image source is not a normalized relative file path ({url})");
     }
 
     Ok(())

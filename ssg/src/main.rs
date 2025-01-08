@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{bail, Context, Result};
 use camino::Utf8PathBuf;
 use foldhash::{HashMap, HashMapExt, HashSet, HashSetExt};
 use glob::glob;
@@ -97,10 +97,7 @@ fn main() -> Result<()> {
 
             // Check for article slug collisions
             if !article_slugs.insert(article_frontmatter.slug.clone()) {
-                return Err(anyhow!(
-                    "duplicate article slug found: {}",
-                    article_frontmatter.slug
-                ));
+                bail!("duplicate article slug found: {}", article_frontmatter.slug);
             }
 
             // Create output article directory

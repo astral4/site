@@ -1,7 +1,7 @@
 //! Code for building complete HTML pages from article bodies.
 
 use crate::{css::Font, OUTPUT_SITE_CSS_FILE_ABSOLUTE};
-use anyhow::{anyhow, Error, Result};
+use anyhow::{bail, Error, Result};
 use ego_tree::{tree, NodeId, NodeMut, Tree};
 use jiff::civil::Date;
 use markup5ever::{interface::QuirksMode, namespace_url, ns, Attribute, LocalName, QualName};
@@ -89,9 +89,7 @@ impl PageBuilder {
                 .is_some_and(|el| el.name() == "main") // "We have components at home"
                 .then(|| node.id())
         }) else {
-            return Err(anyhow!(
-                "template does not have a `<main>` element for slotting page content"
-            ));
+            bail!("template does not have a `<main>` element for slotting page content");
         };
 
         Ok(Self {
