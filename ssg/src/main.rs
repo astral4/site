@@ -70,26 +70,25 @@ fn main() -> Result<()> {
         LatexConverter::new().context("failed to initialize LaTeX-to-HTML converter")?;
 
     // Process all articles
-    let article_match_pattern: Utf8PathBuf = [config.articles_dir.as_str(), "**", "index.md"]
+    let article_match_pattern: Utf8PathBuf = [config.articles_dir.as_str(), "**", "*.md"]
         .into_iter()
         .collect();
 
     for entry in glob(article_match_pattern.as_str()).expect("article glob pattern is valid") {
-        let input_article_dir = {
-            let mut entry_path = entry.context("failed to access entry in articles directory")?;
-            entry_path.pop();
+        let entry_path = entry.context("failed to access entry in articles directory")?;
 
-            if !entry_path.is_dir() {
-                continue;
-            }
+        let input_article_dir = entry_path
+            .parent()
+            .expect("article file path should have parent");
 
-            entry_path
-        };
+        if !input_article_dir.is_dir() {
+            continue;
+        }
 
         (|| {
             // Get article text
-            let article_text = read_to_string(input_article_dir.join("index.md"))
-                .context("failed to read article file")?;
+            let article_text =
+                read_to_string(&entry_path).context("failed to read article file")?;
 
             // Parse frontmatter from article text
             let article_frontmatter = Frontmatter::from_text(&article_text)
@@ -116,7 +115,7 @@ fn main() -> Result<()> {
                 &article_frontmatter,
                 &syntax_highlighter,
                 &latex_converter,
-                &input_article_dir,
+                input_article_dir,
                 &output_article_dir,
                 &page_builder,
             )
