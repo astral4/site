@@ -269,7 +269,7 @@ impl ArchiveBuilder {
 
             list_node.append_subtree(tree! {
                 create_el("li") => {
-                    create_el("p") => {
+                    create_el_with_attrs("p", &[("class", "__article-date")]) => {
                         create_el_with_attrs("time", &[("datetime", &date_string)]) => { create_text(&date_string) }
                     },
                     create_el_with_attrs("a", &[("href", &article.slug)]) => {
