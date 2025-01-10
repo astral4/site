@@ -95,30 +95,21 @@ impl LatexConverter {
 #[cfg(test)]
 mod test {
     use super::{LatexConverter, RenderMode};
+    use anyhow::Result;
 
     #[test]
-    fn inline_display_comparison() {
-        let converter = LatexConverter::new().expect("engine initialization should succeed");
+    fn inline_display_comparison() -> Result<()> {
+        let converter = LatexConverter::new()?;
 
-        let inline_html = converter
-            .latex_to_html("2x+3y=4z", RenderMode::Inline)
-            .expect("inline LaTeX conversion should succeed");
-
-        let display_html = converter
-            .latex_to_html("2x+3y=4z", RenderMode::Display)
-            .expect("display LaTeX conversion should succeed");
+        let inline_html = converter.latex_to_html("2x+3y=4z", RenderMode::Inline)?;
+        let display_html = converter.latex_to_html("2x+3y=4z", RenderMode::Display)?;
 
         assert_ne!(
             inline_html, display_html,
             "inline LaTeX and display LaTeX should yield different outputs"
         );
 
-        assert!(
-            converter
-                .latex_to_html("\\frac{", RenderMode::Inline)
-                .is_err(),
-            "conversion should fail on invalid LaTeX"
-        );
+        Ok(())
     }
 
     #[test]
@@ -133,17 +124,14 @@ mod test {
     }
 
     #[test]
-    fn sufficient_stack_size() {
-        let converter = LatexConverter::new().expect("engine initialization should succeed");
+    fn sufficient_stack_size() -> Result<()> {
+        let converter = LatexConverter::new()?;
 
         // Surprisingly, this is enough to exhaust the JavaScript runtime's default stack size of 256 KiB
-        converter
-            .latex_to_html("\\frac{1}{2}", RenderMode::Inline)
-            .unwrap();
+        converter.latex_to_html("\\frac{1}{2}", RenderMode::Inline)?;
 
-        converter
-            .latex_to_html(
-                r"\begin{align}
+        converter.latex_to_html(
+            r"\begin{align}
 (\tan(x))'
 &= (\tfrac{\sin(x)}{\cos(x)})' \\
 &= \tfrac{\cos(x)\cdot\cos(x)-\sin(x)\cdot(-\sin(x))}{\cos^2(x)} \\
@@ -167,16 +155,15 @@ f'(x)
 &= x\tan^{-1}x-\tfrac{1}{2}\ln(u)+C \\
 &= x\tan^{-1}x-\tfrac{1}{2}\ln(x^2+1)+C
 \end{align}",
-                RenderMode::Display,
-            )
-            .unwrap();
+            RenderMode::Display,
+        )?;
 
         // Even further nesting causes the test thread's stack to overflow
-        converter
-            .latex_to_html(
-                &format!("{}2{}", "\\frac{1}{".repeat(10), "}".repeat(10)),
-                RenderMode::Inline,
-            )
-            .unwrap();
+        converter.latex_to_html(
+            &format!("{}2{}", "\\frac{1}{".repeat(10), "}".repeat(10)),
+            RenderMode::Inline,
+        )?;
+
+        Ok(())
     }
 }

@@ -144,47 +144,43 @@ impl SyntaxHighlighter {
 #[cfg(test)]
 mod test {
     use super::{SyntaxHighlighter, THEME_NAMES};
+    use anyhow::Result;
 
     #[test]
-    fn plaintext() {
+    fn plaintext() -> Result<()> {
         for theme in &THEME_NAMES {
             let highlighter = SyntaxHighlighter::new(theme);
 
-            highlighter
-                .highlight_segment("abc123")
-                .expect("highlighting should succeed");
-
-            highlighter
-                .highlight_block("abc123", None)
-                .expect("highlighting should succeed");
+            highlighter.highlight_segment("abc123")?;
+            highlighter.highlight_block("abc123", None)?;
         }
+        Ok(())
     }
 
     #[test]
-    fn extension_based_syntax_detection() {
+    fn extension_based_syntax_detection() -> Result<()> {
         for theme in &THEME_NAMES {
-            SyntaxHighlighter::new(theme)
-                .highlight_block("const FOO: usize = 42;", Some("rs"))
-                .expect("highlighting should succeed");
+            SyntaxHighlighter::new(theme).highlight_block("const FOO: usize = 42;", Some("rs"))?;
         }
+        Ok(())
     }
 
     #[test]
-    fn name_based_syntax_detection() {
+    fn name_based_syntax_detection() -> Result<()> {
         for theme in &THEME_NAMES {
             SyntaxHighlighter::new(theme)
-                .highlight_block("const FOO: usize = 42;", Some("rust"))
-                .expect("highlighting should succeed");
+                .highlight_block("const FOO: usize = 42;", Some("rust"))?;
         }
+        Ok(())
     }
 
     #[test]
-    fn invalid_syntax() {
+    fn invalid_syntax() -> Result<()> {
         for theme in &THEME_NAMES {
             SyntaxHighlighter::new(theme)
-                .highlight_block("constant foo u0 = \"abc", Some("rust"))
-                .expect("highlighting should succeed");
+                .highlight_block("constant foo u0 = \"abc", Some("rust"))?;
         }
+        Ok(())
     }
 
     #[test]
@@ -200,7 +196,7 @@ mod test {
     }
 
     #[test]
-    fn tabs_to_spaces() {
+    fn tabs_to_spaces() -> Result<()> {
         const TEXT_SPACES: &str = "
 abc
     abc
@@ -222,13 +218,11 @@ abc
             let highlighter = SyntaxHighlighter::new(theme);
 
             assert_eq!(
-                highlighter
-                    .highlight_block(TEXT_SPACES, None)
-                    .expect("highlighting should succeed"),
-                highlighter
-                    .highlight_block(TEXT_TABS, None)
-                    .expect("highlighting should succeed"),
+                highlighter.highlight_block(TEXT_SPACES, None)?,
+                highlighter.highlight_block(TEXT_TABS, None)?,
             );
         }
+
+        Ok(())
     }
 }
