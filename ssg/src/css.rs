@@ -1,12 +1,13 @@
 //! Code for CSS minification and font dependency analysis.
 
+use crate::extract_if::extract_if;
 use anyhow::{Context, Result};
 use lightningcss::{
     error::Error,
     printer::PrinterOptions,
     rules::{
         font_face::{FontFaceProperty, FontFormat, Source},
-        CssRule,
+        CssRule, CssRuleList,
     },
     stylesheet::{MinifyOptions, ParserFlags, ParserOptions, StyleSheet},
     targets::{Browsers, Features, Targets},
@@ -14,8 +15,10 @@ use lightningcss::{
 use std::collections::HashSet;
 
 /// Parses the input string as CSS. This function returns:
-/// - minified CSS compatible with a set of "reasonable" target browser versions
+/// - two minified CSS strings (one contains all `@font-face` rules; one contains none)
 /// - a list of font dependencies (highest-priority sources only)
+///
+/// Output CSS is compatible with a set of "reasonable" target browser versions.
 ///
 /// # Errors
 /// This function returns an error if:
@@ -28,24 +31,6 @@ use std::collections::HashSet;
 /// - querying for the default set of target browser versions returns an error
 /// - the default set of target browser versions does not exist
 pub fn transform_css(source: &str) -> Result<CssOutput> {
-    // Parse input as CSS
-    let mut stylesheet = StyleSheet::parse(
-        source,
-        ParserOptions {
-            // The source file path will be included higher in the error chain
-            filename: String::new(),
-            css_modules: None,
-            source_index: Default::default(),
-            // The CSS parser should error instead of reporting success while emitting warnings
-            error_recovery: false,
-            warnings: None,
-            // Support CSS nesting parsing
-            flags: ParserFlags::NESTING,
-        },
-    )
-    .map_err(Error::into_owned)
-    .context("failed to parse input as valid CSS")?;
-
     // Determine target browser versions for stylesheet compilation
     let targets = Targets {
         browsers: Some(
@@ -57,6 +42,11 @@ pub fn transform_css(source: &str) -> Result<CssOutput> {
         exclude: Features::empty(),
     };
 
+    // Parse input as CSS
+    let mut stylesheet = StyleSheet::parse(source, const { parser_options() })
+        .map_err(Error::into_owned)
+        .context("failed to parse input as valid CSS")?;
+
     // Minify stylesheet based on target browser versions
     stylesheet
         .minify(MinifyOptions {
@@ -65,29 +55,19 @@ pub fn transform_css(source: &str) -> Result<CssOutput> {
         })
         .context("failed to minify CSS")?;
 
-    // Serialize stylesheet to string
-    let css = stylesheet
-        .to_css(PrinterOptions {
-            // Remove whitespace
-            minify: true,
-            project_root: None,
-            targets,
-            analyze_dependencies: None,
-            pseudo_classes: None,
-        })
-        .context("failed to serialize minified CSS")?
-        .code;
+    // Extract `@font-face` rules from the stylesheet
+    let font_rules: Vec<_> = extract_if(stylesheet.rules.0.as_mut(), |rule| {
+        matches!(rule, CssRule::FontFace(_))
+    })
+    .collect();
 
-    // Find the highest-priority source for each font used by the stylesheet
-    let top_fonts = stylesheet
-        .rules
-        .0
-        .into_iter()
-        .filter_map(|rule| match rule {
-            CssRule::FontFace(font_rule) => Some(font_rule.properties),
-            _ => None,
+    // Find the highest-priority source for each font in the stylesheet
+    let top_fonts = font_rules
+        .iter()
+        .flat_map(|rule| match rule {
+            CssRule::FontFace(font_rule) => font_rule.properties.clone(),
+            _ => unreachable!(),
         })
-        .flatten()
         .filter_map(|property| match property {
             FontFaceProperty::Source(sources) => Some(sources),
             _ => None,
@@ -110,12 +90,55 @@ pub fn transform_css(source: &str) -> Result<CssOutput> {
         })
         .collect();
 
-    Ok(CssOutput { css, top_fonts })
+    // Serialize stylesheets to strings
+    let css = serialize_stylesheet(&stylesheet, targets).context("failed to serialize CSS")?;
+
+    let font_stylesheet = StyleSheet::new(
+        Vec::new(),
+        CssRuleList(font_rules),
+        const { parser_options() },
+    );
+    let font_css =
+        serialize_stylesheet(&font_stylesheet, targets).context("failed to serialize font CSS")?;
+
+    Ok(CssOutput {
+        css,
+        font_css,
+        top_fonts,
+    })
+}
+
+const fn parser_options<'o, 'i>() -> ParserOptions<'o, 'i> {
+    ParserOptions {
+        // The source file path will be included higher in the error chain
+        filename: String::new(),
+        css_modules: None,
+        source_index: u32::MIN,
+        // The CSS parser should error instead of reporting success while emitting warnings
+        error_recovery: false,
+        warnings: None,
+        // Support CSS nesting parsing
+        flags: ParserFlags::NESTING,
+    }
+}
+
+fn serialize_stylesheet(stylesheet: &StyleSheet<'_, '_>, targets: Targets) -> Result<String> {
+    let output = stylesheet.to_css(PrinterOptions {
+        // Remove whitespace
+        minify: true,
+        project_root: None,
+        targets,
+        analyze_dependencies: None,
+        pseudo_classes: None,
+    })?;
+
+    Ok(output.code)
 }
 
 #[cfg_attr(test, derive(Debug, PartialEq))]
 pub struct CssOutput {
     pub css: String,
+    pub font_css: String,
     pub top_fonts: Vec<Font>,
 }
 
@@ -135,6 +158,7 @@ mod test {
             transform_css("p { font-size: 1em }").expect("CSS transformation should succeed"),
             CssOutput {
                 css: "p{font-size:1em}".into(),
+                font_css: String::new(),
                 top_fonts: vec![]
             }
         );
@@ -146,7 +170,8 @@ mod test {
             transform_css("@font-face { src: url('foo.bin') format('woff2'); }")
                 .expect("CSS transformation should succeed"),
             CssOutput {
-                css: "@font-face{src:url(foo.bin)format(\"woff2\")}".into(),
+                css: String::new(),
+                font_css: "@font-face{src:url(foo.bin)format(\"woff2\")}".into(),
                 top_fonts: vec![Font {
                     path: "foo.bin".into(),
                     mime: Some("font/woff2")
@@ -161,7 +186,8 @@ mod test {
             transform_css("@font-face { src: url('foo.bin') format('woff'), url('bar.bin') format('ttf'); } @font-face { src: url('baz.bin'); }")
                 .expect("CSS transformation should succeed"),
             CssOutput {
-                css: "@font-face{src:url(foo.bin)format(\"woff\"),url(bar.bin)format(\"ttf\")}@font-face{src:url(baz.bin)}".into(),
+                css: String::new(),
+                font_css: "@font-face{src:url(foo.bin)format(\"woff\"),url(bar.bin)format(\"ttf\")}@font-face{src:url(baz.bin)}".into(),
                 top_fonts: vec![Font {
                     path: "foo.bin".into(),
                     mime: Some("font/woff")

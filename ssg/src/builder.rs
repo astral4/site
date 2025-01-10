@@ -22,13 +22,19 @@ impl PageBuilder {
     /// Initializes a webpage HTML builder. Every page built:
     /// - includes the provided author as a metadata tag
     /// - specifies preloaded fonts based on the provided list of font sources
+    /// - contains inlined styles based on the provided stylesheet
     /// - has a `<body>` structure based on the provided template
     ///
     /// # Errors
     /// This function returns an error if:
     /// - the input template cannot be successfully parsed as no-quirks HTML
     /// - the input template does not contain a `<main>` element for slotting page content
-    pub fn new(author: &str, site_fonts: &[Font], template: &str) -> Result<Self> {
+    pub fn new(
+        author: &str,
+        site_fonts: &[Font],
+        inline_styles: &str,
+        template: &str,
+    ) -> Result<Self> {
         // Parse template into tree of HTML nodes
         let template = parse_html(template)?;
 
@@ -71,6 +77,15 @@ impl PageBuilder {
             }
 
             head_el_node.append(create_el_with_attrs("link", &attrs));
+        }
+
+        // Add `<style>` within `<head>`
+        if !inline_styles.is_empty() {
+            head_el_node.append_subtree(tree! {
+                create_el("style") => {
+                    create_text(inline_styles)
+                }
+            });
         }
 
         let head_id = head_el_node.id();

@@ -32,7 +32,11 @@ fn main() -> Result<()> {
         .context("failed to create output articles directory")?;
 
     // Process site CSS file
-    let CssOutput { css, top_fonts } = read_to_string(&config.site_css_file)
+    let CssOutput {
+        css,
+        font_css,
+        top_fonts,
+    } = read_to_string(&config.site_css_file)
         .context("failed to read site CSS file")
         .and_then(|css| transform_css(&css).context("failed to minify site CSS"))?;
 
@@ -47,7 +51,7 @@ fn main() -> Result<()> {
         .context("failed to read site HTML template file")?;
 
     // Create page builder (template for every page)
-    let page_builder = PageBuilder::new(&config.author, &top_fonts, &template_text)
+    let page_builder = PageBuilder::new(&config.author, &top_fonts, &font_css, &template_text)
         .context("failed to process site HTML template")?;
 
     // Process all fragment files
