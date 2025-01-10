@@ -210,7 +210,7 @@ fn build_article(
         )
         .into_offset_iter(),
     ) {
-        if let Some(state) = active_image_state.as_mut() {
+        if let Some(state) = &mut active_image_state {
             match event {
                 Event::Start(Tag::Image { .. }) => state.nest(),
                 Event::End(TagEnd::Image) => state.unnest(),
@@ -264,7 +264,7 @@ fn build_article(
 
                 validate_image_src(&dest_url).context("image source is invalid")?;
 
-                let input_path = input_dir.join(dest_url.as_ref());
+                let input_path = input_dir.join(&*dest_url);
                 let input_handle = Handle::from_path(&input_path)
                     .with_context(|| format!("failed to open file at {input_path:?}"))?;
 

@@ -11,6 +11,8 @@ use lightningcss::{
     },
     stylesheet::{MinifyOptions, ParserFlags, ParserOptions, StyleSheet},
     targets::{Browsers, Features, Targets},
+    traits::IntoOwned,
+    values::string::CowArcStr,
 };
 use std::{collections::HashSet, hint::unreachable_unchecked};
 
@@ -56,7 +58,7 @@ pub fn transform_css(source: &str) -> Result<CssOutput> {
         .context("failed to minify CSS")?;
 
     // Extract `@font-face` rules from the stylesheet
-    let font_rules: Vec<_> = extract_if(stylesheet.rules.0.as_mut(), |rule| {
+    let font_rules: Vec<_> = extract_if(&mut stylesheet.rules.0, |rule| {
         matches!(rule, CssRule::FontFace(_))
     })
     .collect();
@@ -79,7 +81,7 @@ pub fn transform_css(source: &str) -> Result<CssOutput> {
             Source::Local(_) => None,
         })
         .map(|src| Font {
-            path: Box::from(&*src.url.url),
+            path: src.url.url.into_owned(),
             mime: src.format.and_then(|format| match format {
                 FontFormat::WOFF2 => Some("font/woff2"),
                 FontFormat::WOFF => Some("font/woff"),
@@ -145,7 +147,7 @@ pub struct CssOutput {
 
 #[cfg_attr(test, derive(Debug, PartialEq))]
 pub struct Font {
-    pub(crate) path: Box<str>,
+    pub(crate) path: CowArcStr<'static>,
     pub(crate) mime: Option<&'static str>,
 }
 
