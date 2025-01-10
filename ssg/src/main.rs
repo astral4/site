@@ -168,7 +168,9 @@ fn process_fragment(
 
     // Write page HTML to a file in the output directory
     let output_path = output_dir
-        .join(fragment.path.file_name().unwrap()) // File stem is guaranteed to be Some(_) from `Config::from_env()`
+        .join(fragment.path.file_name().expect(
+            "fragment path should include file name if validation in `Config::from_env()` was successful",
+        ))
         .with_extension("html");
 
     write(&output_path, html)
@@ -218,9 +220,14 @@ fn build_article(
             if state.is_active() {
                 state.update_alt_text_range(offset);
             } else {
-                let html = active_image_state.unwrap().into_html(markdown);
+                // SAFETY: At this point, `active_image_state` is guaranteed to be `Some(_)`.
+                let html = unsafe {
+                    active_image_state
+                        .take()
+                        .unwrap_unchecked()
+                        .into_html(markdown)
+                };
                 events.push(html_to_event(html));
-                active_image_state = None;
             }
 
             continue;

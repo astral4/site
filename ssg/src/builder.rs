@@ -371,7 +371,10 @@ fn append_fragment(node: &mut NodeMut<'_, Node>, fragment_tree: Tree<Node>) {
     // After appending the fragment's tree, we have to make the contents direct children of the node.
     let mut fragment_root_node = node.append_subtree(fragment_tree);
     let fragment_root_id = fragment_root_node.id();
-    let fragment_html_id = fragment_root_node.first_child().unwrap().id();
+    let fragment_html_id = fragment_root_node
+        .first_child()
+        .expect("`fragment_tree` should have at least one node")
+        .id();
     node.reparent_from_id_append(fragment_html_id);
     // SAFETY: Indexing is guaranteed to be valid because
     // the ID was obtained from appending the fragment as a subtree of a node from the tree.

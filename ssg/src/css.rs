@@ -12,7 +12,7 @@ use lightningcss::{
     stylesheet::{MinifyOptions, ParserFlags, ParserOptions, StyleSheet},
     targets::{Browsers, Features, Targets},
 };
-use std::collections::HashSet;
+use std::{collections::HashSet, hint::unreachable_unchecked};
 
 /// Parses the input string as CSS. This function returns:
 /// - two minified CSS strings (one contains all `@font-face` rules; one contains none)
@@ -66,7 +66,8 @@ pub fn transform_css(source: &str) -> Result<CssOutput> {
         .iter()
         .flat_map(|rule| match rule {
             CssRule::FontFace(font_rule) => font_rule.properties.clone(),
-            _ => unreachable!(),
+            // SAFETY: `rule` is guaranteed to match `CssRule::FontFace(_)` because of the earlier `extract_if()` call
+            _ => unsafe { unreachable_unchecked() },
         })
         .filter_map(|property| match property {
             FontFaceProperty::Source(sources) => Some(sources),
