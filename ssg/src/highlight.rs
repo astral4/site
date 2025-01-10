@@ -192,7 +192,7 @@ mod test {
         for theme in &THEME_NAMES {
             assert!(
                 SyntaxHighlighter::new(theme)
-                    .highlight_block("", Some("klingon"))
+                    .highlight_block("abc", Some("klingon"))
                     .is_err(),
                 "syntax detection for non-existent language should fail"
             );

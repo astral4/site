@@ -4,7 +4,9 @@ use crate::{css::Font, OUTPUT_SITE_CSS_FILE_ABSOLUTE};
 use anyhow::{bail, Error, Result};
 use ego_tree::{tree, NodeId, NodeMut, Tree};
 use jiff::civil::Date;
-use markup5ever::{interface::QuirksMode, namespace_url, ns, Attribute, LocalName, QualName};
+use markup5ever::{
+    interface::QuirksMode, namespace_url, ns, tendril::Tendril, Attribute, LocalName, QualName,
+};
 use scraper::{
     node::{Doctype, Element, Node, Text},
     Html,
@@ -44,8 +46,8 @@ impl PageBuilder {
         // Add `<!DOCTYPE html>`
         root_node.append(Node::Doctype(Doctype {
             name: "html".into(),
-            public_id: "".into(),
-            system_id: "".into(),
+            public_id: Tendril::new(),
+            system_id: Tendril::new(),
         }));
 
         // Add `<html lang="en">`
