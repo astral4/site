@@ -3,19 +3,15 @@
 use anyhow::{anyhow, Context, Result};
 use gray_matter::{engine::YAML, Matter};
 use jiff::civil::Date;
-use serde::{
-    de::{Error as DeError, Unexpected},
-    Deserialize, Deserializer,
-};
+use serde::Deserialize;
 
 #[cfg_attr(test, derive(Debug, PartialEq))]
 #[derive(Deserialize)]
 pub struct Frontmatter {
     pub title: Box<str>,
     pub slug: Box<str>,
-    #[serde(deserialize_with = "deserialize_date")]
     pub created: Date,
-    #[serde(default, deserialize_with = "deserialize_optional_date")]
+    #[serde(default)]
     pub updated: Option<Date>,
 }
 
@@ -42,31 +38,6 @@ impl Frontmatter {
         } else {
             Ok(matter)
         }
-    }
-}
-
-fn deserialize_date<'de, D>(deserializer: D) -> Result<Date, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let raw: String = Deserialize::deserialize(deserializer)?;
-
-    raw.parse().map_err(|_| {
-        DeError::invalid_value(Unexpected::Str(&raw), &"Expected a date in string form")
-    })
-}
-
-fn deserialize_optional_date<'de, D>(deserializer: D) -> Result<Option<Date>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let raw: Option<String> = Deserialize::deserialize(deserializer)?;
-
-    match raw {
-        Some(raw) => Ok(Some(raw.parse().map_err(|_| {
-            DeError::invalid_value(Unexpected::Str(&raw), &"Expected a date in string form")
-        })?)),
-        None => Ok(None),
     }
 }
 
