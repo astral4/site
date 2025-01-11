@@ -51,8 +51,14 @@ fn main() -> Result<()> {
         .context("failed to read site HTML template file")?;
 
     // Create page builder (template for every page)
-    let page_builder = PageBuilder::new(&config.author, &top_fonts, &font_css, &template_text)
-        .context("failed to process site HTML template")?;
+    let page_builder = PageBuilder::new(
+        &config.author,
+        &config.html_theme_color,
+        &top_fonts,
+        &font_css,
+        &template_text,
+    )
+    .context("failed to process site HTML template")?;
 
     // Process all fragment files
     for fragment in config.fragments {
@@ -67,7 +73,7 @@ fn main() -> Result<()> {
     let mut archive_builder = ArchiveBuilder::new();
 
     // Initialize syntax highlighter for article text
-    let syntax_highlighter = SyntaxHighlighter::new(&config.theme);
+    let syntax_highlighter = SyntaxHighlighter::new(&config.code_theme);
 
     // Initialize LaTeX-to-HTML converter for article text
     let latex_converter =

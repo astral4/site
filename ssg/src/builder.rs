@@ -33,6 +33,7 @@ impl PageBuilder {
     /// - the input template does not contain a `<main>` element for slotting page content
     pub fn new(
         author: &str,
+        theme_color: &str,
         site_fonts: &[Font],
         inline_styles: &str,
         template: &str,
@@ -57,8 +58,9 @@ impl PageBuilder {
         let mut head_el_node = html_el_node.append_subtree(tree! {
             create_el("head") => {
                 create_el_with_attrs("meta", &[("charset", "utf-8")]),
-                create_el_with_attrs("meta", &[("name", "viewport"), ("content", "width=device-width, initial-scale=1")]),
                 create_el_with_attrs("meta", &[("name", "author"), ("content", author)]),
+                create_el_with_attrs("meta", &[("name", "theme-color"), ("content", theme_color)]),
+                create_el_with_attrs("meta", &[("name", "viewport"), ("content", "width=device-width, initial-scale=1")]),
                 create_el_with_attrs("link", &[("rel", "stylesheet"), ("href", OUTPUT_SITE_CSS_FILE_ABSOLUTE)])
             }
         });
