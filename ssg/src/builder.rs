@@ -61,7 +61,10 @@ impl PageBuilder {
             create_el("head") => {
                 create_el_with_attrs("meta", &[("charset", "utf-8")]),
                 create_el_with_attrs("meta", &[("name", "viewport"), ("content", "width=device-width, initial-scale=1")]),
-                create_el_with_attrs("link", &[("rel", "stylesheet"), ("href", OUTPUT_SITE_CSS_FILE_ABSOLUTE)])
+                // disable iOS Safari behavior where strings that look like telephone numbers are automatically linked
+                // https://stackoverflow.com/a/227238
+                create_el_with_attrs("meta", &[("name", "format-detection"), ("content", "telephone=no")]),
+                create_el_with_attrs("link", &[("rel", "stylesheet"), ("href", OUTPUT_SITE_CSS_FILE_ABSOLUTE)]),
             }
         });
 
