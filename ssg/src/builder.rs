@@ -292,8 +292,10 @@ impl ArchiveBuilder {
                     create_el_with_attrs("p", &[("class", "__article-date")]) => {
                         create_el_with_attrs("time", &[("datetime", &date_string)]) => { create_text(&date_string) }
                     },
-                    create_el_with_attrs("a", &[("href", &article.slug)]) => {
-                        create_el("p") => { create_text(&article.title) }
+                    create_el_with_attrs("div", &[("class", "__article-link")]) => {
+                        create_el_with_attrs("a", &[("href", &article.slug)]) => {
+                            create_text(&article.title)
+                        }
                     }
                 }
             });
