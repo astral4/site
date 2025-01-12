@@ -46,19 +46,20 @@ fn main() -> Result<()> {
     save_math_assets(&config.output_dir)
         .context("failed to write math CSS to output destination")?;
 
-    // Get site HTML template text
-    let template_text = read_to_string(config.template_html_file)
-        .context("failed to read site HTML template file")?;
+    // Get site HTML templates
+    let head_template_text = read_to_string(config.head_template_html_file)
+        .context("failed to read head HTML template file")?;
+    let body_template_text = read_to_string(config.body_template_html_file)
+        .context("failed to read body HTML template file")?;
 
     // Create page builder (template for every page)
     let page_builder = PageBuilder::new(
-        &config.author,
-        &config.html_theme_color,
+        &head_template_text,
+        &body_template_text,
         &top_fonts,
         &font_css,
-        &template_text,
     )
-    .context("failed to process site HTML template")?;
+    .context("failed to process HTML templates")?;
 
     // Process all fragment files
     for fragment in config.fragments {

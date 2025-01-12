@@ -4,12 +4,8 @@ use crate::highlight::THEME_NAMES;
 use anyhow::{anyhow, bail, Context, Result};
 use camino::Utf8Path;
 use foldhash::{HashSet, HashSetExt};
-use lightningcss::{traits::Parse, values::color::CssColor};
 use same_file::Handle;
-use serde::{
-    de::{Deserializer, Error},
-    Deserialize,
-};
+use serde::Deserialize;
 use std::{env::args, ffi::OsStr, fs::read_to_string, path::Path};
 use toml_edit::de::from_str as toml_from_str;
 
@@ -29,40 +25,27 @@ macro_rules! transform_paths {
 
 #[derive(Deserialize)]
 pub struct Config {
-    // Name of the website author
-    pub author: Box<str>,
-    // Webpage theme color used by browsers to customize the surrounding UI color
-    #[serde(deserialize_with = "deserialize_color")]
-    pub html_theme_color: Box<str>,
-    // Name of theme for code syntax highlighting
-    pub code_theme: Box<str>,
     // Path to directory for generated site output
     pub output_dir: Box<Path>,
     // Path to site-wide CSS file
     pub site_css_file: Box<Path>,
-    // Path to site-wide template HTML file
-    pub template_html_file: Box<Path>,
+    // Path to site-wide head template HTML file
+    pub head_template_html_file: Box<Path>,
+    // Path to site-wide body template HTML file
+    pub body_template_html_file: Box<Path>,
     // List of titles and paths for all webpage fragment files;
     // for non-article pages like the site index and the "about" page
     pub fragments: Box<[Fragment]>,
     // Path to directory containing all articles
     pub articles_dir: Box<Utf8Path>,
+    // Name of theme for code syntax highlighting
+    pub code_theme: Box<str>,
 }
 
 #[derive(Deserialize)]
 pub struct Fragment {
     pub title: Box<str>,
     pub path: Box<Path>,
-}
-
-fn deserialize_color<'de, D>(deserializer: D) -> Result<Box<str>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    // Make sure the value is a valid CSS color
-    let s: Box<str> = Deserialize::deserialize(deserializer)?;
-    CssColor::parse_string(&s).map_err(Error::custom)?;
-    Ok(s)
 }
 
 impl Config {
@@ -101,7 +84,13 @@ impl Config {
         transform_paths!(
             config,
             &config_path,
-            [output_dir: Path, site_css_file: Path, template_html_file: Path, articles_dir: Utf8Path]
+            [
+                output_dir: Path,
+                site_css_file: Path,
+                head_template_html_file: Path,
+                body_template_html_file: Path,
+                articles_dir: Utf8Path
+            ]
         );
         for fragment in &mut config.fragments {
             transform_paths!(fragment, &config_path, [path: Path]);
@@ -131,10 +120,15 @@ impl Config {
                 "`site_css_file`: {:?} could not be opened or does not point to a file",
                 self.site_css_file
             );
-        } else if !self.template_html_file.is_file() {
+        } else if !self.head_template_html_file.is_file() {
             bail!(
-                "`template_html_file`: {:?} could not be opened or does not point to a file",
-                self.template_html_file
+                "`head_template_html_file`: {:?} could not be opened or does not point to a file",
+                self.head_template_html_file
+            );
+        } else if !self.body_template_html_file.is_file() {
+            bail!(
+                "`body_template_html_file`: {:?} could not be opened or does not point to a file",
+                self.body_template_html_file
             );
         }
 

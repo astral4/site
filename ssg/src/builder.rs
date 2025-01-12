@@ -1,7 +1,7 @@
 //! Code for building complete HTML pages from article bodies.
 
 use crate::{css::Font, OUTPUT_SITE_CSS_FILE_ABSOLUTE};
-use anyhow::{bail, Error, Result};
+use anyhow::{bail, Context, Error, Result};
 use ego_tree::{tree, NodeId, NodeMut, Tree};
 use jiff::civil::Date;
 use markup5ever::{
@@ -22,24 +22,26 @@ pub struct PageBuilder {
 
 impl PageBuilder {
     /// Initializes a webpage HTML builder. Every page built:
-    /// - includes the provided author as a metadata tag
-    /// - specifies preloaded fonts based on the provided list of font sources
-    /// - contains inlined styles based on the provided stylesheet
-    /// - has a `<body>` structure based on the provided template
+    /// - includes `<head>` elements from the input head template
+    /// - includes `<body>` elements from the input body template
+    /// - specifies preloaded fonts from the input list of font sources
+    /// - contains inlined styles from the input stylesheet
     ///
     /// # Errors
     /// This function returns an error if:
-    /// - the input template cannot be successfully parsed as no-quirks HTML
-    /// - the input template does not contain a `<main>` element for slotting page content
+    /// - the input templates cannot be successfully parsed as no-quirks HTML
+    /// - the input body template does not contain a `<main>` element for slotting page content
     pub fn new(
-        author: &str,
-        theme_color: &str,
+        head_template: &str,
+        body_template: &str,
         site_fonts: &[Font],
         inline_styles: &str,
-        template: &str,
     ) -> Result<Self> {
-        // Parse template into tree of HTML nodes
-        let template = parse_html(template)?;
+        // Parse templates into trees of HTML nodes
+        let head_template =
+            parse_html(head_template).context("failed to parse head HTML template")?;
+        let body_template =
+            parse_html(body_template).context("failed to parse body HTML template")?;
 
         let mut html = Html::new_document();
         let mut root_node = html.tree.root_mut();
@@ -58,12 +60,13 @@ impl PageBuilder {
         let mut head_el_node = html_el_node.append_subtree(tree! {
             create_el("head") => {
                 create_el_with_attrs("meta", &[("charset", "utf-8")]),
-                create_el_with_attrs("meta", &[("name", "author"), ("content", author)]),
-                create_el_with_attrs("meta", &[("name", "theme-color"), ("content", theme_color)]),
                 create_el_with_attrs("meta", &[("name", "viewport"), ("content", "width=device-width, initial-scale=1")]),
                 create_el_with_attrs("link", &[("rel", "stylesheet"), ("href", OUTPUT_SITE_CSS_FILE_ABSOLUTE)])
             }
         });
+
+        // Add head template within `<head>`
+        append_fragment(&mut head_el_node, head_template);
 
         // Add font `<link>`s within `<head>`
         for font in site_fonts {
@@ -97,18 +100,18 @@ impl PageBuilder {
         // Add `<body>` within `<html>`
         let mut body_el_node = html_el_node.append(create_el("body"));
 
-        // Add template within `<body>`
-        append_fragment(&mut body_el_node, template);
+        // Add body template within `<body>`
+        append_fragment(&mut body_el_node, body_template);
 
-        // Find element in template for slotting page content
-        // We search in reverse insertion order because the template's HTML nodes were inserted last.
+        // Find element in body template for slotting page content
+        // We search in reverse insertion order because the body template's HTML nodes were inserted last.
         let Some(slot_id) = html.tree.nodes().rev().find_map(|node| {
             node.value()
                 .as_element()
                 .is_some_and(|el| el.name() == "main") // "We have components at home"
                 .then(|| node.id())
         }) else {
-            bail!("template does not have a `<main>` element for slotting page content");
+            bail!("body template does not have a `<main>` element for slotting page content");
         };
 
         Ok(Self {
