@@ -103,7 +103,10 @@ impl SyntaxHighlighter {
         }
 
         // Add closing tag; the opening tag was added in `start_highlighted_html_snippet()`
-        output.push_str("</pre>");
+        #[allow(clippy::items_after_statements)]
+        const CLOSING_TAG: &str = "</pre>";
+        output.reserve_exact(const { CLOSING_TAG.len() });
+        output.push_str(CLOSING_TAG);
 
         Ok(output)
     }
