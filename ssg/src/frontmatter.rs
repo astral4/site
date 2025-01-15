@@ -61,137 +61,115 @@ mod test {
     use super::Frontmatter;
     use jiff::civil::date;
 
+    /// Utility function for asserting failure to parse the input text as frontmatter
+    fn assert_parse_err(input: &str) {
+        assert!(Frontmatter::from_text(input).is_err());
+    }
+
+    /// Utility function for asserting that the `input` parsed as frontmatter is equal to `expected`
+    fn assert_parse_eq(input: &str, expected: Frontmatter) {
+        assert_eq!(
+            Frontmatter::from_text(input).expect("parsing should succeed"),
+            expected
+        );
+    }
+
     #[test]
     fn missing_frontmatter() {
         // Parsing should fail if frontmatter is absent
-        assert!(Frontmatter::from_text("abc123").is_err());
+        assert_parse_err("abc123");
     }
 
     #[test]
     fn missing_fields() {
         // Parsing should fail if not all frontmatter fields are present
-        assert!(Frontmatter::from_text("---\ntitle: abc\n---").is_err());
-        assert!(
-            Frontmatter::from_text("---\ntitle: abc\nslug: def\nupdated: 2000-01-01\n---").is_err()
-        );
+        assert_parse_err("---\ntitle: abc\n---");
+        assert_parse_err("---\ntitle: abc\nslug: def\nupdated: 2000-01-01\n---");
     }
 
     #[test]
     fn empty_fields() {
         // Parsing should fail if title or slug are empty
-        assert!(Frontmatter::from_text("---\ntitle: \nslug: \ncreated: 2000-01-01\n---").is_err());
-        assert!(
-            Frontmatter::from_text("---\ntitle:  \nslug:  \ncreated: 2000-01-01\n---").is_err()
-        );
+        assert_parse_err("---\ntitle: \nslug: \ncreated: 2000-01-01\n---");
+        assert_parse_err("---\ntitle:  \nslug:  \ncreated: 2000-01-01\n---");
     }
 
     #[test]
     fn invalid_slug() {
-        assert!(
-            Frontmatter::from_text("---\ntitle: abc\nslug: foo/bar\ncreated: 2000-01-01\n---")
-                .is_err()
-        );
-        assert!(Frontmatter::from_text(
-            "---\ntitle: abc\nslug: foo\\bar\ncreated: 2000-01-01\n---"
-        )
-        .is_err());
-        assert!(
-            Frontmatter::from_text("---\ntitle: abc\nslug: foo:bar\ncreated: 2000-01-01\n---")
-                .is_err()
-        );
+        assert_parse_err("---\ntitle: abc\nslug: foo/bar\ncreated: 2000-01-01\n---");
+        assert_parse_err("---\ntitle: abc\nslug: foo\\bar\ncreated: 2000-01-01\n---");
+        assert_parse_err("---\ntitle: abc\nslug: foo:bar\ncreated: 2000-01-01\n---");
     }
 
     #[test]
     fn invalid_date() {
         // Parsing should fail if date fields are invalid
-        assert!(
-            Frontmatter::from_text("---\ntitle: abc\nslug: def\ncreated: 123xyz\n---").is_err()
-        );
-        assert!(Frontmatter::from_text(
-            "---\ntitle: abc\nslug: def\ncreated: 2020-01-01\nupdated: 123xyz\n---"
-        )
-        .is_err());
-        assert!(Frontmatter::from_text(
-            "---\ntitle: abc\nslug: def\ncreated: 123xyz\nupdated: 123xyz\n---"
-        )
-        .is_err());
-        assert!(
-            Frontmatter::from_text("---\ntitle: abc\nslug: def\ncreated: 2000-1-1\n---").is_err()
-        );
-        assert!(
-            Frontmatter::from_text("---\ntitle: abc\nslug: def\ncreated: 2000-02-30\n---").is_err()
-        );
+        assert_parse_err("---\ntitle: abc\nslug: def\ncreated: 123xyz\n---");
+        assert_parse_err("---\ntitle: abc\nslug: def\ncreated: 2020-01-01\nupdated: 123xyz\n---");
+        assert_parse_err("---\ntitle: abc\nslug: def\ncreated: 123xyz\nupdated: 123xyz\n---");
+        assert_parse_err("---\ntitle: abc\nslug: def\ncreated: 2000-1-1\n---");
+        assert_parse_err("---\ntitle: abc\nslug: def\ncreated: 2000-02-30\n---");
     }
 
     #[test]
     fn no_update_field() {
-        assert_eq!(
-            Frontmatter::from_text("---\ntitle: abc\nslug: def\ncreated: 2000-01-01\n---")
-                .expect("parsing should succeed"),
+        assert_parse_eq(
+            "---\ntitle: abc\nslug: def\ncreated: 2000-01-01\n---",
             Frontmatter {
                 title: "abc".into(),
                 slug: "def".into(),
                 created: date(2000, 1, 1),
-                updated: None
-            }
+                updated: None,
+            },
         );
     }
 
     #[test]
     fn update_after_create() {
         // Parsing should fail if the last-updated date precedes the creation date
-        assert!(Frontmatter::from_text(
-            "---\ntitle: abc\nslug: def\ncreated: 2000-01-01\nupdated: 1900-01-01\n---"
-        )
-        .is_err());
-        assert_eq!(
-            Frontmatter::from_text(
-                "---\ntitle: abc\nslug: def\ncreated: 2000-01-01\nupdated: 2000-01-01\n---"
-            )
-            .expect("parsing should succeed"),
-            Frontmatter {
-                title: "abc".into(),
-                slug: "def".into(),
-                created: date(2000, 1, 1),
-                updated: Some(date(2000, 1, 1))
-            }
+        assert_parse_err(
+            "---\ntitle: abc\nslug: def\ncreated: 2000-01-01\nupdated: 1900-01-01\n---",
         );
-        assert_eq!(
-            Frontmatter::from_text(
-                "---\ntitle: abc\nslug: def\ncreated: 2000-01-01\nupdated: 2000-01-02\n---"
-            )
-            .expect("parsing should succeed"),
+        assert_parse_eq(
+            "---\ntitle: abc\nslug: def\ncreated: 2000-01-01\nupdated: 2000-01-01\n---",
             Frontmatter {
                 title: "abc".into(),
                 slug: "def".into(),
                 created: date(2000, 1, 1),
-                updated: Some(date(2000, 1, 2))
-            }
+                updated: Some(date(2000, 1, 1)),
+            },
+        );
+        assert_parse_eq(
+            "---\ntitle: abc\nslug: def\ncreated: 2000-01-01\nupdated: 2000-01-02\n---",
+            Frontmatter {
+                title: "abc".into(),
+                slug: "def".into(),
+                created: date(2000, 1, 1),
+                updated: Some(date(2000, 1, 2)),
+            },
         );
     }
 
     #[test]
     fn timezones() {
         // Parsing timezones from date fields is not supported
-        assert!(Frontmatter::from_text(
+        assert_parse_err(
             "---\ntitle: abc\nslug: def\ncreated: 2000-01-01T00:00Z\nupdated: 2000-01-02T00:00-01:00\n---"
-        )
-        .is_err());
+        );
     }
 
     #[test]
     fn ignore_times() {
         // When times are included in the date fields, we expect the parser
         // to recognize but ignore them when producing a date output.
-        assert_eq!(
-            Frontmatter::from_text("---\ntitle: abc\nslug: def\ncreated: 2000-01-01T01:00\nupdated: 2000-01-01T00:00\n---")
-                .expect("parsing should succeed"),
+        assert_parse_eq(
+            "---\ntitle: abc\nslug: def\ncreated: 2000-01-01T01:00\nupdated: 2000-01-01T00:00\n---",
             Frontmatter {
                 title: "abc".into(),
                 slug: "def".into(),
                 created: date(2000, 1, 1),
-                updated: Some(date(2000, 1, 1))
-            }
+                updated: Some(date(2000, 1, 1)),
+            },
         );
     }
 }
