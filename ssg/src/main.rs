@@ -173,12 +173,18 @@ fn process_fragment(
         .build_page(&fragment.title, &fragment_text, PageKind::Fragment)
         .context("failed to parse fragment as valid HTML")?;
 
-    // Write page HTML to a file in the output directory
-    let output_path = output_dir
-        .join(fragment.path.file_name().expect(
-            "fragment path should include file name if validation in `Config::from_env()` was successful",
-        ))
-        .with_extension("html");
+    // Create output path
+    let stem = fragment.path.file_stem().expect(
+        "fragment path should include file name if validation in `Config::from_env()` was successful",
+    );
+
+    let output_path = if stem == "index" {
+        output_dir.join("index.html")
+    } else {
+        let dir = output_dir.join(stem);
+        create_dir(&dir).with_context(|| format!("failed to create directory at {dir:?}"))?;
+        dir.join("index.html")
+    };
 
     write(&output_path, html)
         .with_context(|| format!("failed to write HTML to {output_path:?}"))?;
