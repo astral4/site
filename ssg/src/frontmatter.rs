@@ -67,6 +67,7 @@ mod test {
     }
 
     /// Utility function for asserting that the `input` parsed as frontmatter is equal to `expected`
+    #[allow(clippy::needless_pass_by_value)]
     fn assert_parse_eq(input: &str, expected: Frontmatter) {
         assert_eq!(
             Frontmatter::from_text(input).expect("parsing should succeed"),
