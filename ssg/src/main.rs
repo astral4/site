@@ -217,7 +217,8 @@ fn build_article(
     for (event, offset) in TextMergeWithOffset::new(
         Parser::new_ext(
             markdown,
-            Options::ENABLE_STRIKETHROUGH
+            Options::ENABLE_TABLES
+                | Options::ENABLE_STRIKETHROUGH
                 | Options::ENABLE_YAML_STYLE_METADATA_BLOCKS
                 | Options::ENABLE_MATH,
         )
