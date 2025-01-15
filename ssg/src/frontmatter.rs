@@ -1,9 +1,13 @@
 //! Code for parsing YAML-style frontmatter from articles.
 
+use aho_corasick::AhoCorasick;
 use anyhow::{anyhow, Context, Result};
 use gray_matter::{engine::YAML, Matter};
 use jiff::civil::Date;
 use serde::Deserialize;
+use std::sync::OnceLock;
+
+static SLUG_MATCHER: OnceLock<AhoCorasick> = OnceLock::new();
 
 #[cfg_attr(test, derive(Debug, PartialEq))]
 #[derive(Deserialize)]
@@ -23,6 +27,9 @@ impl Frontmatter {
     /// - no frontmatter is found in the text
     /// - frontmatter cannot be parsed due to invalid syntax, missing fields, invalid field values, etc.
     /// - the parsed last-updated date is before the parsed creation date
+    ///
+    /// # Panics
+    /// This function panics if the string matcher for detecting invalid slug characters cannot be constructed.
     pub fn from_text(input: &str) -> Result<Self> {
         let matter: Frontmatter = Matter::<YAML>::new()
             .parse(input)
@@ -31,10 +38,18 @@ impl Frontmatter {
             .deserialize()
             .context("failed to parse article frontmatter")?;
 
-        if matter.updated.is_some_and(|date| date < matter.created) {
+        let matcher = SLUG_MATCHER.get_or_init(|| {
+            AhoCorasick::new(["/", "\\", ":"]).expect("automaton construction should succeed")
+        });
+
+        if matcher.is_match(&*matter.slug) {
             Err(anyhow!(
-                "last-updated date precedes creation date of article"
+                r"article slug cannot contain the following characters: / \ :"
             ))
+        } else if matter.updated.is_some_and(|date| date < matter.created) {
+            return Err(anyhow!(
+                "last-updated date precedes creation date of article"
+            ));
         } else {
             Ok(matter)
         }
@@ -67,6 +82,22 @@ mod test {
         assert!(Frontmatter::from_text("---\ntitle: \nslug: \ncreated: 2000-01-01\n---").is_err());
         assert!(
             Frontmatter::from_text("---\ntitle:  \nslug:  \ncreated: 2000-01-01\n---").is_err()
+        );
+    }
+
+    #[test]
+    fn invalid_slug() {
+        assert!(
+            Frontmatter::from_text("---\ntitle: abc\nslug: foo/bar\ncreated: 2000-01-01\n---")
+                .is_err()
+        );
+        assert!(Frontmatter::from_text(
+            "---\ntitle: abc\nslug: foo\\bar\ncreated: 2000-01-01\n---"
+        )
+        .is_err());
+        assert!(
+            Frontmatter::from_text("---\ntitle: abc\nslug: foo:bar\ncreated: 2000-01-01\n---")
+                .is_err()
         );
     }
 
