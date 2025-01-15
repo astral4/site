@@ -236,7 +236,7 @@ pub struct ArchiveBuilder(Vec<ArticlePreview>);
 
 struct ArticlePreview {
     title: Box<str>,
-    slug: Box<str>,
+    slug: String,
     created: Date,
 }
 
@@ -249,7 +249,7 @@ impl ArchiveBuilder {
     }
 
     /// Adds an article's metadata (title, slug, and creation date) to the builder.
-    pub fn add_article(&mut self, title: Box<str>, slug: Box<str>, created: Date) {
+    pub fn add_article(&mut self, title: Box<str>, slug: String, created: Date) {
         self.0.push(ArticlePreview {
             title,
             slug,
@@ -287,7 +287,10 @@ impl ArchiveBuilder {
             ],
         ));
 
-        for article in self.0 {
+        for mut article in self.0 {
+            article.slug.reserve_exact(1);
+            article.slug.push('/');
+
             let date_string = article.created.to_string();
 
             list_node.append_subtree(tree! {

@@ -13,7 +13,7 @@ static SLUG_MATCHER: OnceLock<AhoCorasick> = OnceLock::new();
 #[derive(Deserialize)]
 pub struct Frontmatter {
     pub title: Box<str>,
-    pub slug: Box<str>,
+    pub slug: String,
     pub created: Date,
     #[serde(default)]
     pub updated: Option<Date>,
