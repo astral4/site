@@ -10,7 +10,7 @@ This directory contains the source code of `ssg`, the static site generator for 
 - Prefer [semantic HTML](https://web.dev/learn/html/semantic-html).
 - Report useful error messages.
 
-Tasks without approaches that are **clearly best** and **likely to remain so in the long term** are left up to the user. This includes favicon generation—see [here](https://evilmartians.com/chronicles/how-to-favicon-in-2021-six-files-that-fit-most-needs), [here](https://dev.to/masakudamatsu/favicon-nightmare-how-to-maintain-sanity-3al7), and [here](https://css-tricks.com/how-to-favicon-in-2021/) for various conflicting practices over the years—and `robots.txt` generation. The implementation remains simpler this way.
+Tasks with lots of room for customization are left up to the user. This includes favicon generation—see [here](https://evilmartians.com/chronicles/how-to-favicon-in-2021-six-files-that-fit-most-needs), [here](https://dev.to/masakudamatsu/favicon-nightmare-how-to-maintain-sanity-3al7), and [here](https://css-tricks.com/how-to-favicon-in-2021/) for various conflicting practices over the years—and `robots.txt` generation. There might be zero or many best approaches, or an approach that is unlikely to remain best in the long term; `ssg` defers for simplicity.
 
 ## Installation
 
