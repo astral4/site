@@ -224,6 +224,7 @@ fn build_article(
             markdown,
             Options::ENABLE_TABLES
                 | Options::ENABLE_STRIKETHROUGH
+                | Options::ENABLE_SMART_PUNCTUATION
                 | Options::ENABLE_YAML_STYLE_METADATA_BLOCKS
                 | Options::ENABLE_MATH,
         )
