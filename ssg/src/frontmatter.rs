@@ -1,7 +1,7 @@
 //! Code for parsing YAML-style frontmatter from articles.
 
 use aho_corasick::AhoCorasick;
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use gray_matter::{engine::YAML, Matter};
 use jiff::civil::Date;
 use serde::Deserialize;
@@ -42,17 +42,17 @@ impl Frontmatter {
             AhoCorasick::new(["/", "\\", ":"]).expect("automaton construction should succeed")
         });
 
-        if matcher.is_match(&*matter.slug) {
-            Err(anyhow!(
-                r"article slug cannot contain the following characters: / \ :"
-            ))
-        } else if matter.updated.is_some_and(|date| date < matter.created) {
-            return Err(anyhow!(
-                "last-updated date precedes creation date of article"
-            ));
-        } else {
-            Ok(matter)
+        if matter.slug.is_empty() {
+            bail!("article slug cannot be empty");
         }
+        if matcher.is_match(&*matter.slug) {
+            bail!(r"article slug cannot contain the following characters: / \ :");
+        }
+        if matter.updated.is_some_and(|date| date < matter.created) {
+            bail!("last-updated date precedes creation date of article");
+        }
+
+        Ok(matter)
     }
 }
 
