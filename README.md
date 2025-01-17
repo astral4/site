@@ -1,6 +1,8 @@
 # site
 
-This repository contains code used for my personal website.
+## Introduction
+
+This repository contains code used for my personal website. The main component is `ssg`, the static site generator for my website. You can read about its features [here](ssg/).
 
 ## License
 
