@@ -8,8 +8,8 @@ use pulldown_cmark::{
 use same_file::Handle;
 use ssg::{
     convert_image, save_math_assets, transform_css, validate_image_src, ActiveImageState,
-    ArchiveBuilder, Config, CssOutput, Fragment, Frontmatter, LatexConverter, PageBuilder,
-    PageKind, RenderMode, SyntaxHighlighter, OUTPUT_CONTENT_DIR, OUTPUT_CSS_DIR, OUTPUT_FONTS_DIR,
+    ArchiveBuilder, Config, CssOutput, Frontmatter, LatexConverter, PageBuilder, PageKind,
+    RenderMode, SyntaxHighlighter, OUTPUT_CONTENT_DIR, OUTPUT_CSS_DIR, OUTPUT_FONTS_DIR,
     OUTPUT_SITE_CSS_FILE,
 };
 use std::{
@@ -61,10 +61,47 @@ fn main() -> Result<()> {
     )
     .context("failed to process HTML templates")?;
 
+    // Check for duplicate fragment file stems so every fragment has a unique output path
+    let mut fragment_stems = HashSet::new();
+
     // Process all fragment files
     for fragment in config.fragments {
-        process_fragment(&fragment, &config.output_dir, &page_builder)
-            .with_context(|| format!("failed to process fragment at {:?}", fragment.path))?;
+        // Get fragment path's stem; determines the output path
+        let stem = fragment.path.file_stem().expect(
+        "fragment path should include file name if validation in `Config::from_env()` was successful",
+        );
+
+        (|| {
+            // Check for fragment stem collisions
+            if !fragment_stems.insert(stem.to_owned()) {
+                bail!("duplicate fragment slug found: {stem:?}");
+            }
+
+            // Get fragment text
+            let fragment_text =
+                read_to_string(&fragment.path).context("failed to read fragment file")?;
+
+            // Build complete page from fragment
+            let html = page_builder
+                .build_page(&fragment.title, &fragment_text, PageKind::Fragment)
+                .context("failed to parse fragment as valid HTML")?;
+
+            // Create output path
+            let output_path = if stem == "index" {
+                config.output_dir.join("index.html")
+            } else {
+                let dir = config.output_dir.join(stem);
+                create_dir(&dir)
+                    .with_context(|| format!("failed to create directory at {dir:?}"))?;
+                dir.join("index.html")
+            };
+
+            write(&output_path, html)
+                .with_context(|| format!("failed to write HTML to {output_path:?}"))?;
+
+            Ok(())
+        })()
+        .with_context(|| format!("failed to process fragment at {:?}", fragment.path))?;
     }
 
     // Check for duplicate slugs from articles' frontmatter so every article has a unique output directory
@@ -156,38 +193,6 @@ fn main() -> Result<()> {
         .join("index.html");
     write(&output_path, archive_html)
         .with_context(|| format!("failed to write article archive HTML to {output_path:?}"))?;
-
-    Ok(())
-}
-
-fn process_fragment(
-    fragment: &Fragment,
-    output_dir: &Path,
-    page_builder: &PageBuilder,
-) -> Result<()> {
-    // Get fragment text
-    let fragment_text = read_to_string(&fragment.path).context("failed to read fragment file")?;
-
-    // Build complete page from fragment
-    let html = page_builder
-        .build_page(&fragment.title, &fragment_text, PageKind::Fragment)
-        .context("failed to parse fragment as valid HTML")?;
-
-    // Create output path
-    let stem = fragment.path.file_stem().expect(
-        "fragment path should include file name if validation in `Config::from_env()` was successful",
-    );
-
-    let output_path = if stem == "index" {
-        output_dir.join("index.html")
-    } else {
-        let dir = output_dir.join(stem);
-        create_dir(&dir).with_context(|| format!("failed to create directory at {dir:?}"))?;
-        dir.join("index.html")
-    };
-
-    write(&output_path, html)
-        .with_context(|| format!("failed to write HTML to {output_path:?}"))?;
 
     Ok(())
 }
