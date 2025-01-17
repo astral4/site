@@ -183,7 +183,7 @@ fn main() -> Result<()> {
 
             Ok(())
         })()
-        .with_context(|| format!("failed to process article from {input_article_dir:?}"))?;
+        .with_context(|| format!("failed to process article at {entry_path:?}"))?;
     }
 
     let archive_html = archive_builder.into_html(&page_builder);
