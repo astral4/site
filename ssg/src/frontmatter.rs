@@ -96,7 +96,12 @@ mod test {
     }
 
     #[test]
-    fn invalid_slug() {
+    fn slug_empty_string() {
+        assert_parse_err("---\ntitle: abc\nslug: \"\"\ncreated: 2000-01-01\n---");
+    }
+
+    #[test]
+    fn slug_with_disallowed_char() {
         assert_parse_err("---\ntitle: abc\nslug: foo/bar\ncreated: 2000-01-01\n---");
         assert_parse_err("---\ntitle: abc\nslug: foo\\bar\ncreated: 2000-01-01\n---");
         assert_parse_err("---\ntitle: abc\nslug: foo:bar\ncreated: 2000-01-01\n---");
