@@ -26,6 +26,8 @@ Tasks without approaches that are **clearly best** and **likely to remain so in 
 ssg path/to/config.toml
 ```
 
+### The configuration file schema
+
 The config file must be in [TOML](https://toml.io/en/) and is expected to have the following fields:
 
 - `output_dir` (string)
@@ -74,6 +76,8 @@ code_theme = "base16-mocha.dark"
 >[!NOTE]
 >Relative paths within the config file are interpreted as relative to the config file's path, **not** relative to the current working directory when the program runs.
 
+### The Markdown frontmatter schema
+
 Markdown files within `articles_dir` must have [YAML](https://yaml.org)-style frontmatter with the following fields:
 
 - `title` (string)
@@ -99,6 +103,20 @@ slug: "my-favorite-program"
 created: "2036-08-12"
 ---
 ```
+
+### Emitted classes
+
+Generated pages contain some elements with specific HTML `class` names. They are listed here in case you want to target them in CSS.
+
+- `__article-heading`
+  - `<hgroup>` element at the beginning of article pages
+  - contains the title heading and date string 
+- `__article-list`
+  - `<ol>` element on the article archive page
+  - child `<li>` entries contain article creation dates, titles, and links
+- `__article-date`
+  - `<p>` element within `__article-list`
+  - contains the article creation date
 
 ## Features
 
@@ -179,17 +197,3 @@ $$\int\tfrac{x}{\sqrt{x^2+5}}~dx=\sqrt{x^2+5}+C$$
 ### Article archive
 
 Articles are written to `<output dir>/writing/`. `ssg` also generates a page at `<output dir>/writing/index.html` containing a list of all articles. The articles are sorted by creation date in reverse chronological order, then by title in reverse lexicographical order.
-
-## Appendix: Emitted classes
-
-Generated pages contain some elements with specific HTML `class` names. They are listed here in case you want to target them in CSS.
-
-- `__article-heading`
-  - `<hgroup>` element at the beginning of article pages
-  - contains the title heading and date string 
-- `__article-list`
-  - `<ol>` element on the article archive page
-  - child `<li>` entries contain article creation dates, titles, and links
-- `__article-date`
-  - `<p>` element within `__article-list`
-  - contains the article creation date
