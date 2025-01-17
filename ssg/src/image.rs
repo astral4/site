@@ -4,6 +4,7 @@ use crate::builder::create_img_html;
 use anyhow::{bail, Context, Result};
 use camino::{Utf8Component, Utf8Path};
 use image::{codecs::avif::AvifEncoder, GenericImageView, ImageEncoder, ImageReader};
+use pulldown_cmark::CowStr;
 use std::{
     fs::{copy, File},
     io::BufWriter,
@@ -20,30 +21,30 @@ const ENCODER_SPEED: u8 = 10;
 #[cfg(not(debug_assertions))]
 const ENCODER_SPEED: u8 = 1;
 
-pub struct ActiveImageState {
+pub struct ActiveImageState<'a> {
     nesting_level: usize,
-    url: Box<str>,
+    url: CowStr<'a>,
     width: u32,
     height: u32,
-    title: Box<str>,
-    id: Box<str>,
+    title: CowStr<'a>,
+    id: CowStr<'a>,
     alt_text_range: Range<usize>,
 }
 
-impl ActiveImageState {
+impl<'a> ActiveImageState<'a> {
     const INIT_NESTING_LEVEL: usize = 1;
 
     /// Creates a context for tracking the character range of an image's alt text within a Markdown source.
     #[must_use]
-    pub fn new(url: &str, dimensions: (u32, u32), title: &str, id: &str) -> Self {
+    pub fn new(url: CowStr<'a>, dimensions: (u32, u32), title: CowStr<'a>, id: CowStr<'a>) -> Self {
         let (width, height) = dimensions;
         Self {
             nesting_level: Self::INIT_NESTING_LEVEL,
-            url: url.into(),
+            url,
             width,
             height,
-            title: title.into(),
-            id: id.into(),
+            title,
+            id,
             alt_text_range: Range {
                 start: usize::MAX,
                 end: usize::MIN,

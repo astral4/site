@@ -212,7 +212,7 @@ fn build_article(
     // Check for duplicate image links to avoid redundant image processing
     let mut image_links = HashMap::new();
     // Track image parsing state to support image alt text
-    let mut active_image_state: Option<ActiveImageState> = None;
+    let mut active_image_state: Option<ActiveImageState<'_>> = None;
     // Track code block parsing state to support syntax highlighting
     let mut is_in_code_block = false;
     let mut code_language = None;
@@ -298,8 +298,7 @@ fn build_article(
                     }
                 };
 
-                active_image_state =
-                    Some(ActiveImageState::new(&dest_url, dimensions, &title, &id));
+                active_image_state = Some(ActiveImageState::new(dest_url, dimensions, title, id));
 
                 continue;
             }
