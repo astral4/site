@@ -32,22 +32,24 @@ pub struct ActiveImageState<'a> {
 }
 
 impl<'a> ActiveImageState<'a> {
-    const INIT_NESTING_LEVEL: usize = 1;
+    const INITIAL_NESTING_LEVEL: usize = 1;
+    const INITIAL_START_INDEX: usize = usize::MAX;
+    const INITIAL_END_INDEX: usize = usize::MIN;
 
     /// Creates a context for tracking the character range of an image's alt text within a Markdown source.
     #[must_use]
     pub fn new(url: CowStr<'a>, dimensions: (u32, u32), title: CowStr<'a>, id: CowStr<'a>) -> Self {
         let (width, height) = dimensions;
         Self {
-            nesting_level: Self::INIT_NESTING_LEVEL,
+            nesting_level: Self::INITIAL_NESTING_LEVEL,
             url,
             width,
             height,
             title,
             id,
             alt_text_range: Range {
-                start: usize::MAX,
-                end: usize::MIN,
+                start: Self::INITIAL_START_INDEX,
+                end: Self::INITIAL_END_INDEX,
             },
         }
     }
@@ -67,7 +69,7 @@ impl<'a> ActiveImageState<'a> {
     /// Returns a Boolean indicating if the context has ended.
     #[must_use]
     pub fn is_active(&self) -> bool {
-        self.nesting_level >= Self::INIT_NESTING_LEVEL
+        self.nesting_level >= Self::INITIAL_NESTING_LEVEL
     }
 
     /// Updates the character range of this context's alt text.
@@ -87,10 +89,17 @@ impl<'a> ActiveImageState<'a> {
     /// The input Markdown source is used for retrieving the image's alt text.
     #[must_use]
     pub fn into_html(self, markdown_source: &str) -> String {
-        debug_assert_eq!(self.nesting_level, Self::INIT_NESTING_LEVEL - 1);
+        debug_assert_eq!(self.nesting_level, Self::INITIAL_NESTING_LEVEL - 1);
 
         let image_src = Utf8Path::new(&self.url).with_extension(OUTPUT_FORMAT_EXTENSION);
-        let alt_text = &markdown_source[self.alt_text_range];
+        let alt_text = if self.alt_text_range.start == Self::INITIAL_START_INDEX
+            || self.alt_text_range.end == Self::INITIAL_END_INDEX
+        {
+            // self.update_alt_text_range() was never called, so the image has no alt text
+            ""
+        } else {
+            &markdown_source[self.alt_text_range]
+        };
         let (width_str, height_str) = (self.width.to_string(), self.height.to_string());
 
         // Build image HTML representation
@@ -185,4 +194,10 @@ pub fn convert_image(
     }
 
     Ok((width, height))
+}
+
+#[cfg(test)]
+mod test {
+    #[test]
+    fn it_works() {}
 }
