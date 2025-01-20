@@ -148,7 +148,7 @@ Straight single and double quotes in articles are automatically converted to the
 
 ### Image conversion
 
-Images referenced in articles are converted to AVIF, a modern lossy image format with [broad support in web browsers](https://caniuse.com/avif). Compared to older formats like WebP and JPEG, AVIF offers better compression quality at equivalent file sizes. Existing AVIF images are simply copied to the output destination.
+Raster images referenced in articles are converted to AVIF, a modern lossy image format with [broad support in web browsers](https://caniuse.com/avif). Compared to older formats like WebP and JPEG, AVIF offers better compression quality at equivalent file sizes. Existing AVIF images are simply copied to the output destination.
 
 To opt out of conversion, use raw HTML (i.e. `<img>`) to include images. `ssg` will completely ignore images declared this way in articles, but this also means you are responsible for copying the image file to the output destination.
 
