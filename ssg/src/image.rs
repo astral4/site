@@ -12,7 +12,7 @@ use std::{
     path::Path,
 };
 
-const OUTPUT_FORMAT_EXTENSION: &str = "avif";
+pub const OUTPUT_IMAGE_EXTENSION: &str = "avif";
 
 // In debug builds, we use the fastest encoding speed for the fastest site build times.
 // In release builds, we use the slowest encoding speed for the best compression.
@@ -24,8 +24,7 @@ const ENCODER_SPEED: u8 = 1;
 pub struct ActiveImageState<'a> {
     nesting_level: usize,
     url: CowStr<'a>,
-    width: u32,
-    height: u32,
+    dimensions: Option<Dimensions>,
     title: CowStr<'a>,
     id: CowStr<'a>,
     alt_text_range: Range<usize>,
@@ -38,13 +37,16 @@ impl<'a> ActiveImageState<'a> {
 
     /// Creates a context for tracking the character range of an image's alt text within a Markdown source.
     #[must_use]
-    pub fn new(url: CowStr<'a>, dimensions: (u32, u32), title: CowStr<'a>, id: CowStr<'a>) -> Self {
-        let (width, height) = dimensions;
+    pub fn new(
+        url: CowStr<'a>,
+        dimensions: Option<Dimensions>,
+        title: CowStr<'a>,
+        id: CowStr<'a>,
+    ) -> Self {
         Self {
             nesting_level: Self::INITIAL_NESTING_LEVEL,
             url,
-            width,
-            height,
+            dimensions,
             title,
             id,
             alt_text_range: Range {
@@ -91,7 +93,6 @@ impl<'a> ActiveImageState<'a> {
     pub fn into_html(self, markdown_source: &str) -> String {
         debug_assert_eq!(self.nesting_level, Self::INITIAL_NESTING_LEVEL - 1);
 
-        let image_src = Utf8Path::new(&self.url).with_extension(OUTPUT_FORMAT_EXTENSION);
         let alt_text = if self.alt_text_range.start == Self::INITIAL_START_INDEX
             || self.alt_text_range.end == Self::INITIAL_END_INDEX
         {
@@ -100,19 +101,24 @@ impl<'a> ActiveImageState<'a> {
         } else {
             &markdown_source[self.alt_text_range]
         };
-        let (width_str, height_str) = (self.width.to_string(), self.height.to_string());
+
+        let dimension_strs = self
+            .dimensions
+            .map(|Dimensions { width, height }| (width.to_string(), height.to_string()));
 
         // Build image HTML representation
         let mut attrs = Vec::with_capacity(8);
-        attrs.push(("src", image_src.as_str()));
+        attrs.push(("src", self.url.as_ref()));
         attrs.push(("alt", alt_text));
-        attrs.push(("width", &width_str));
-        attrs.push(("height", &height_str));
         // Asynchronous image decoding improves the rendering performance of other elements.
         // https://www.tunetheweb.com/blog/what-does-the-image-decoding-attribute-actually-do/
         attrs.push(("decoding", "async"));
         attrs.push(("loading", "lazy"));
 
+        if let Some((width_str, height_str)) = &dimension_strs {
+            attrs.push(("width", width_str));
+            attrs.push(("height", height_str));
+        }
         if !self.title.is_empty() {
             attrs.push(("title", &self.title));
         }
@@ -160,11 +166,11 @@ pub fn convert_image(
     input_article_dir: &Path,
     output_article_dir: &Path,
     image_path: &str,
-) -> Result<(u32, u32)> {
+) -> Result<Dimensions> {
     let input_path = input_article_dir.join(image_path);
     let output_path = output_article_dir
         .join(image_path)
-        .with_extension(OUTPUT_FORMAT_EXTENSION);
+        .with_extension(OUTPUT_IMAGE_EXTENSION);
 
     let image = ImageReader::open(&input_path)
         .with_context(|| format!("failed to open file at {input_path:?}"))?
@@ -177,7 +183,7 @@ pub fn convert_image(
     // we assume it is already encoded in AVIF and simply copy it to the output destination.
     if input_path
         .extension()
-        .is_some_and(|ext| ext == OUTPUT_FORMAT_EXTENSION)
+        .is_some_and(|ext| ext == OUTPUT_IMAGE_EXTENSION)
     {
         copy(&input_path, &output_path).with_context(|| {
             format!("failed to copy file from {input_path:?} to {output_path:?}")
@@ -193,11 +199,11 @@ pub fn convert_image(
             .with_context(|| format!("failed to write image to {output_path:?}"))?;
     }
 
-    Ok((width, height))
+    Ok(Dimensions { width, height })
 }
 
-#[cfg(test)]
-mod test {
-    #[test]
-    fn it_works() {}
+#[derive(Clone, Copy)]
+pub struct Dimensions {
+    width: u32,
+    height: u32,
 }

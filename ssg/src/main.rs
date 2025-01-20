@@ -1,20 +1,21 @@
 use anyhow::{bail, Context, Result};
-use camino::Utf8PathBuf;
+use camino::{Utf8Path, Utf8PathBuf};
 use foldhash::{HashMap, HashMapExt, HashSet, HashSetExt};
 use glob::glob;
 use pulldown_cmark::{
-    html::push_html, CodeBlockKind, Event, Options, Parser, Tag, TagEnd, TextMergeWithOffset,
+    html::push_html, CodeBlockKind, CowStr, Event, Options, Parser, Tag, TagEnd,
+    TextMergeWithOffset,
 };
 use same_file::Handle;
 use ssg::{
     convert_image, save_math_assets, transform_css, validate_image_src, ActiveImageState,
     ArchiveBuilder, Config, CssOutput, Frontmatter, LatexConverter, PageBuilder, PageKind,
     RenderMode, SyntaxHighlighter, OUTPUT_CONTENT_DIR, OUTPUT_CSS_DIR, OUTPUT_FONTS_DIR,
-    OUTPUT_SITE_CSS_FILE,
+    OUTPUT_IMAGE_EXTENSION, OUTPUT_SITE_CSS_FILE,
 };
 use std::{
     collections::hash_map::Entry,
-    fs::{create_dir, create_dir_all, read_to_string, write},
+    fs::{copy, create_dir, create_dir_all, read_to_string, write},
     path::Path,
 };
 
@@ -288,17 +289,35 @@ fn build_article(
                 let input_handle = Handle::from_path(&input_path)
                     .with_context(|| format!("failed to open file at {input_path:?}"))?;
 
-                // Check if image has already been processed
-                let dimensions = match image_links.entry(input_handle) {
-                    Entry::Occupied(entry) => *entry.get(),
-                    Entry::Vacant(entry) => {
-                        let dimensions = convert_image(input_dir, output_dir, &dest_url)
-                            .context("failed to process image")?;
-                        *entry.insert(dimensions)
-                    }
+                let new_state = if input_path.extension().is_some_and(|ext| ext == "svg") {
+                    let output_path = output_dir.join(&*dest_url);
+                    copy(&input_path, &output_path)
+                        .with_context(|| {
+                            format!("failed to copy file from {input_path:?} to {output_path:?}")
+                        })
+                        .context("failed to process SVG image")?;
+
+                    ActiveImageState::new(dest_url, None, title, id)
+                } else {
+                    // Check if image has already been processed
+                    let dimensions = match image_links.entry(input_handle) {
+                        Entry::Occupied(entry) => *entry.get(),
+                        Entry::Vacant(entry) => {
+                            let dimensions = convert_image(input_dir, output_dir, &dest_url)
+                                .context("failed to process image")?;
+                            *entry.insert(dimensions)
+                        }
+                    };
+
+                    let output_path = Utf8Path::new(&dest_url)
+                        .with_extension(OUTPUT_IMAGE_EXTENSION)
+                        .into_string()
+                        .into_boxed_str();
+
+                    ActiveImageState::new(CowStr::Boxed(output_path), Some(dimensions), title, id)
                 };
 
-                active_image_state = Some(ActiveImageState::new(dest_url, dimensions, title, id));
+                active_image_state = Some(new_state);
 
                 continue;
             }

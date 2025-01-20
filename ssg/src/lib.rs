@@ -12,7 +12,7 @@ pub use config::{Config, Fragment};
 pub use css::{transform_css, CssOutput, Font};
 pub use frontmatter::Frontmatter;
 pub use highlight::SyntaxHighlighter;
-pub use image::{convert_image, validate_image_src, ActiveImageState};
+pub use image::{convert_image, validate_image_src, ActiveImageState, OUTPUT_IMAGE_EXTENSION};
 pub use latex::{LatexConverter, RenderMode};
 
 pub use common::OUTPUT_FONTS_DIR;
