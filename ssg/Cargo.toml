@@ -1,6 +1,6 @@
 [package]
 name = "ssg"
-version = "1.0.2"
+version = "1.1.0"
 authors.workspace = true
 edition.workspace = true
 description = "Static site generator for my personal website"
@@ -20,7 +20,7 @@ glob = "0.3.2"
 gray_matter = { version = "0.2.8", default-features = false, features = ["yaml"] }
 image = { version = "0.25.5", default-features = false, features = ["avif", "gif", "jpeg", "png", "webp"] }
 include_dir = "0.7.4"
-jiff = { version = "0.1.24", default-features = false, features = ["alloc", "serde", "std"] }
+jiff = { version = "0.1.25", default-features = false, features = ["alloc", "serde", "std"] }
 lightningcss = { version = "1.0.0-alpha.63", default-features = false, features = ["browserslist", "grid", "into_owned"] }
 markup5ever = "0.14.0"
 phf = { version = "0.11.3", features = ["macros"] }
