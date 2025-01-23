@@ -217,6 +217,9 @@ fn build_article(
     // Track code block parsing state to support syntax highlighting
     let mut is_in_code_block = false;
     let mut code_language = None;
+    // Check for footnote references without definitions (and vice versa) so all footnote links work
+    let mut footnote_references = HashSet::new();
+    let mut footnote_definitions = HashSet::new();
     // Record existence of math markup to support KaTeX formatting
     let mut contains_math = false;
 
@@ -224,6 +227,7 @@ fn build_article(
         Parser::new_ext(
             markdown,
             Options::ENABLE_TABLES
+                | Options::ENABLE_FOOTNOTES
                 | Options::ENABLE_STRIKETHROUGH
                 | Options::ENABLE_SMART_PUNCTUATION
                 | Options::ENABLE_YAML_STYLE_METADATA_BLOCKS
@@ -275,6 +279,16 @@ fn build_article(
                 .highlight_segment(&text)
                 .context("failed to highlight inline code segment")
                 .map(html_to_event)?,
+            Event::FootnoteReference(ref id) => {
+                footnote_references.insert(id.clone());
+                event
+            }
+            Event::Start(Tag::FootnoteDefinition(ref id)) => {
+                if !footnote_definitions.insert(id.clone()) {
+                    bail!("found duplicate footnote definition ID: {id}");
+                }
+                event
+            }
             Event::Start(Tag::Image {
                 dest_url,
                 title,
@@ -337,6 +351,18 @@ fn build_article(
             }
             _ => event,
         });
+    }
+
+    // Check for footnote references without definitions
+    for id in footnote_references {
+        if !footnote_definitions.remove(&id) {
+            bail!("found a footnote reference ID without a definition: {id}");
+        }
+    }
+
+    // Check for footnote definitions without references
+    if let Some(id) = footnote_definitions.iter().next() {
+        bail!("found a footnote definition ID without references: {id}");
     }
 
     // Serialize article body to HTML
