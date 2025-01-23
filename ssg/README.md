@@ -140,7 +140,7 @@ Generated pages contain some elements with specific HTML `class` names. They are
 
 ### Markdown extensions
 
-`ssg` parses and processes some syntax extensions to the original Markdown specification: [tables](https://www.markdownguide.org/extended-syntax/#tables), [fenced code blocks](https://www.markdownguide.org/extended-syntax/#fenced-code-blocks), [strikethrough text](https://www.markdownguide.org/extended-syntax/#strikethrough), and math expressions.
+`ssg` parses and processes some syntax extensions to the original Markdown specification: [tables](https://www.markdownguide.org/extended-syntax/#tables), [fenced code blocks](https://www.markdownguide.org/extended-syntax/#fenced-code-blocks), [footnotes](https://www.markdownguide.org/extended-syntax/#footnotes), [strikethrough text](https://www.markdownguide.org/extended-syntax/#strikethrough), and math expressions.
 
 ### Smart punctuation
 
