@@ -137,7 +137,7 @@ impl PageBuilder {
     fn build_page_inner(&self, title: &str, body: Tree<Node>, kind: PageKind) -> String {
         let mut html = self.html.clone();
 
-        // Add `<title>` within `<head>`
+        // Add page content within `<head>`
         // SAFETY: The ID is valid because it was generated in the constructor `PageBuilder::new()`.
         let mut head_node = unsafe { html.get_unchecked_mut(self.head_id) };
 
@@ -151,11 +151,12 @@ impl PageBuilder {
         head_node.append_subtree(tree! {
             create_el("title") => { create_text(title) }
         });
-        head_node.append_subtree(tree! {
-            create_el("og:title") => { create_text(title) }
-        });
+        head_node.append(create_el_with_attrs(
+            "meta",
+            &[("property", "og:title"), ("content", title)],
+        ));
 
-        // Add page content within template slot
+        // Add page content within body template slot
         // SAFETY: The ID is valid because it was generated in the constructor `PageBuilder::new()`.
         let mut slot_node = unsafe { html.get_unchecked_mut(self.slot_id) };
         let mut slot_node = match kind {
