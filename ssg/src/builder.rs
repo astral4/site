@@ -151,6 +151,9 @@ impl PageBuilder {
         head_node.append_subtree(tree! {
             create_el("title") => { create_text(title) }
         });
+        head_node.append_subtree(tree! {
+            create_el("og:title") => { create_text(title) }
+        });
 
         // Add page content within template slot
         // SAFETY: The ID is valid because it was generated in the constructor `PageBuilder::new()`.
