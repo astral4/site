@@ -15,7 +15,7 @@ Tasks with lots of room for customization are left up to the user. This includes
 ## Installation
 
 1. Make sure Rust and Cargo are [installed](https://www.rust-lang.org/tools/install)
-2. Run `cargo install --bin ssg` if the current working directory is `site/`, or simply `cargo install` if the current working directory is `ssg/`
+2. Run `cargo install --path ssg/` if the current working directory is `site/`, or `cargo install --path .` if the current working directory is `ssg/`
 3. You're done!
 
 ## How to use this tool
