@@ -22,7 +22,7 @@ image = { version = "0.25.5", default-features = false, features = ["avif", "gif
 include_dir = "0.7.4"
 jiff = { version = "0.2.4", default-features = false, features = ["alloc", "serde", "std"] }
 lightningcss = { version = "1.0.0-alpha.65", default-features = false, features = ["browserslist", "grid", "into_owned"] }
-markup5ever = "0.15.0"
+markup5ever = "0.14.1"
 phf = { version = "0.11.3", features = ["macros"] }
 pulldown-cmark = { version = "0.13.0", default-features = false, features = ["html", "simd"] }
 rquickjs = { version = "0.9.0", features = ["parallel", "rust-alloc"] }
