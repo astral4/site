@@ -15,8 +15,8 @@ anyhow.workspace = true
 camino.workspace = true
 common = { path = "../common/" }
 regex = "1.11.1"
-reqwest = { version = "0.12.12", default-features = false, features = ["http2", "rustls-tls"] }
-tokio = { version = "1.43.0", features = ["macros", "rt-multi-thread"] }
+reqwest = { version = "0.12.14", default-features = false, features = ["http2", "rustls-tls"] }
+tokio = { version = "1.44.1", features = ["macros", "rt-multi-thread"] }
 
 [lints]
 workspace = true
