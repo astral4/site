@@ -5,7 +5,7 @@ use anyhow::{bail, Context, Error, Result};
 use ego_tree::{tree, NodeId, NodeMut, Tree};
 use jiff::civil::Date;
 use markup5ever::{
-    interface::QuirksMode, namespace_url, ns, tendril::Tendril, Attribute, LocalName, QualName,
+    interface::QuirksMode, namespace_url, ns, tendril::Tendril, Attribute, QualName,
 };
 use scraper::{
     node::{Doctype, Element, Node, Text},
@@ -364,8 +364,7 @@ fn create_name(name: &str, kind: NameKind) -> QualName {
             NameKind::Element => ns!(html),
             NameKind::Attr => ns!(),
         },
-        local: LocalName::try_static(name)
-            .expect("calls to this function should supply valid names"),
+        local: name.into(),
     }
 }
 
@@ -499,19 +498,5 @@ mod test {
 
         // Element with empty attribute value
         assert_eq_serialized(create_el_with_attrs("p", &[("id", "")]), "<p id=\"\"></p>");
-    }
-
-    #[test]
-    #[should_panic]
-    fn create_nonexistent_element() {
-        // "_" should be an invalid element name
-        create_el("_");
-    }
-
-    #[test]
-    #[should_panic]
-    fn create_element_with_nonexistent_attrs() {
-        // "_" should be an invalid attribute name
-        create_el_with_attrs("p", &[("_", "abc")]);
     }
 }
