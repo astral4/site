@@ -5,12 +5,7 @@ use anyhow::{bail, Context, Result};
 use camino::{Utf8Component, Utf8Path};
 use image::{codecs::avif::AvifEncoder, GenericImageView, ImageEncoder, ImageReader};
 use pulldown_cmark::CowStr;
-use std::{
-    fs::{copy, File},
-    io::BufWriter,
-    ops::Range,
-    path::Path,
-};
+use std::{fs::File, io::BufWriter, ops::Range, path::Path};
 
 pub const OUTPUT_IMAGE_EXTENSION: &str = "avif";
 
@@ -179,25 +174,14 @@ pub fn convert_image(
 
     let (width, height) = image.dimensions();
 
-    // If the input image path ends with ".avif",
-    // we assume it is already encoded in AVIF and simply copy it to the output destination.
-    if input_path
-        .extension()
-        .is_some_and(|ext| ext == OUTPUT_IMAGE_EXTENSION)
-    {
-        copy(&input_path, &output_path).with_context(|| {
-            format!("failed to copy file from {input_path:?} to {output_path:?}")
-        })?;
-    } else {
-        let writer = BufWriter::new(
-            File::create(&output_path)
-                .with_context(|| format!("failed to create file at {output_path:?}"))?,
-        );
+    let writer = BufWriter::new(
+        File::create(&output_path)
+            .with_context(|| format!("failed to create file at {output_path:?}"))?,
+    );
 
-        AvifEncoder::new_with_speed_quality(writer, ENCODER_SPEED, 80)
-            .write_image(image.as_bytes(), width, height, image.color().into())
-            .with_context(|| format!("failed to write image to {output_path:?}"))?;
-    }
+    AvifEncoder::new_with_speed_quality(writer, ENCODER_SPEED, 80)
+        .write_image(image.as_bytes(), width, height, image.color().into())
+        .with_context(|| format!("failed to write image to {output_path:?}"))?;
 
     Ok(Dimensions { width, height })
 }

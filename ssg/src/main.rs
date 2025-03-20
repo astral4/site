@@ -303,13 +303,16 @@ fn build_article(
                 let input_handle = Handle::from_path(&input_path)
                     .with_context(|| format!("failed to open file at {input_path:?}"))?;
 
-                let new_state = if input_path.extension().is_some_and(|ext| ext == "svg") {
+                let new_state = if input_path
+                    .extension()
+                    .is_some_and(|ext| ext == OUTPUT_IMAGE_EXTENSION || ext == "svg")
+                {
                     let output_path = output_dir.join(&*dest_url);
                     copy(&input_path, &output_path)
                         .with_context(|| {
                             format!("failed to copy file from {input_path:?} to {output_path:?}")
                         })
-                        .context("failed to process SVG image")?;
+                        .context("failed to process image")?;
 
                     ActiveImageState::new(dest_url, None, title, id)
                 } else {
