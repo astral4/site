@@ -1107,7 +1107,7 @@ dependencies = [
 
 [[package]]
 name = "katex-dl"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "aho-corasick",
  "anyhow",
@@ -2147,7 +2147,7 @@ dependencies = [
 
 [[package]]
 name = "ssg"
-version = "1.1.5"
+version = "1.1.6"
 dependencies = [
  "aho-corasick",
  "anyhow",
