@@ -83,7 +83,7 @@ Markdown files within `articles_dir` must have [YAML](https://yaml.org)-style fr
 - `title` (string)
   - string to be used as the output page's title
 - `slug` (string)
-  - string used to determine the output page's path (e.g. `all-about-animals` will make have the program write to `<output dir>/writing/all-about-animals/`)
+  - string used to determine the output page's path (e.g. `all-about-animals` will have the program write to `<output dir>/writing/all-about-animals/`)
   - cannot contain `/`, `\`, or `:`
   - must be unique across all Markdown files
 - `created` (string)
@@ -110,7 +110,7 @@ Generated pages contain some elements with specific HTML `class` names. They are
 
 - `__article-heading`
   - `<hgroup>` element at the beginning of article pages
-  - contains the title heading and date string 
+  - contains the title heading and date string
 - `__article-list`
   - `<ol>` element on the article archive page
   - child `<li>` entries contain article creation dates, titles, and links
