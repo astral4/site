@@ -4,9 +4,7 @@ use crate::{css::Font, OUTPUT_SITE_CSS_FILE_ABSOLUTE};
 use anyhow::{bail, Context, Error, Result};
 use ego_tree::{tree, NodeId, NodeMut, Tree};
 use jiff::civil::Date;
-use markup5ever::{
-    interface::QuirksMode, namespace_url, ns, tendril::Tendril, Attribute, QualName,
-};
+use markup5ever::{interface::QuirksMode, ns, tendril::Tendril, Attribute, QualName};
 use scraper::{
     node::{Doctype, Element, Node, Text},
     Html,
