@@ -1,7 +1,6 @@
 mod builder;
 mod config;
 mod css;
-mod extract_if;
 mod frontmatter;
 mod highlight;
 mod image;

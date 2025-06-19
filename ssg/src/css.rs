@@ -1,6 +1,5 @@
 //! Code for CSS minification and font dependency analysis.
 
-use crate::extract_if::extract_if;
 use anyhow::{Context, Result};
 use lightningcss::{
     error::Error,
@@ -58,17 +57,18 @@ pub fn transform_css(source: &str) -> Result<CssOutput> {
         .context("failed to minify CSS")?;
 
     // Extract `@font-face` rules from the stylesheet
-    let font_rules: Vec<_> = extract_if(&mut stylesheet.rules.0, |rule| {
-        matches!(rule, CssRule::FontFace(_))
-    })
-    .collect();
+    let font_rules: Vec<_> = stylesheet
+        .rules
+        .0
+        .extract_if(.., |rule| matches!(rule, CssRule::FontFace(_)))
+        .collect();
 
     // Find the highest-priority source for each font in the stylesheet
     let top_fonts = font_rules
         .iter()
         .flat_map(|rule| match rule {
             CssRule::FontFace(font_rule) => font_rule.properties.clone(),
-            // SAFETY: `rule` is guaranteed to match `CssRule::FontFace(_)` because of the earlier `extract_if()` call
+            // SAFETY: `rule` is guaranteed to match `CssRule::FontFace(_)` because of the earlier `Vec::extract_if()` call
             _ => unsafe { unreachable_unchecked() },
         })
         .filter_map(|property| match property {
