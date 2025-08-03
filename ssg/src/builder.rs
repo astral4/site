@@ -59,7 +59,7 @@ impl PageBuilder {
             create_el("head") => {
                 create_el_with_attrs("meta", &[("charset", "utf-8")]),
                 create_el_with_attrs("meta", &[("name", "viewport"), ("content", "width=device-width, initial-scale=1")]),
-                // disable iOS Safari behavior where strings that look like telephone numbers are automatically linked
+                // Disable iOS Safari behavior where strings that look like telephone numbers are automatically linked
                 // https://stackoverflow.com/a/227238
                 create_el_with_attrs("meta", &[("name", "format-detection"), ("content", "telephone=no")]),
                 create_el_with_attrs("link", &[("rel", "stylesheet"), ("href", OUTPUT_SITE_CSS_FILE_ABSOLUTE)]),
@@ -319,9 +319,10 @@ fn parse_html(input: &str) -> Result<Tree<Node>> {
     // `Html::parse_fragment()` does not return a `Result` because
     // the parser is supposed to be resilient and fall back to HTML quirks mode upon encountering errors.
     // So, after parsing, we have to check for any errors encountered ourselves.
-    match html.errors.first() {
-        Some(err) => Err(Error::msg(err.clone()).context("failed to parse input as valid HTML")),
-        None => Ok(html.tree),
+    if html.errors.is_empty() {
+        Ok(html.tree)
+    } else {
+        Err(Error::msg(html.errors.join("\n")).context("failed to parse input as valid HTML"))
     }
 }
 
