@@ -33,10 +33,9 @@ impl Frontmatter {
     pub fn from_text(input: &str) -> Result<Self> {
         let matter: Frontmatter = Matter::<YAML>::new()
             .parse(input)
+            .context("failed to parse article frontmatter")?
             .data
-            .ok_or_else(|| anyhow!("article frontmatter not found"))?
-            .deserialize()
-            .context("failed to parse article frontmatter")?;
+            .ok_or_else(|| anyhow!("article frontmatter not found"))?;
 
         let matcher = SLUG_MATCHER.get_or_init(|| {
             AhoCorasick::new(["/", "\\", ":"]).expect("automaton construction should succeed")
