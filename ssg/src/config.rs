@@ -65,9 +65,9 @@ impl Config {
         // Get path to config file from command-line arguments
         let mut args = args().skip(1);
 
-        let config_path = args
-            .next()
-            .ok_or_else(|| anyhow!("configuration file path was not provided"))?;
+        let Some(config_path) = args.next() else {
+            bail!("configuration file path was not provided");
+        };
 
         if args.next().is_some() {
             bail!("too many input arguments were provided");

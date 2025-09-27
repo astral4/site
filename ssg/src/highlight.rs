@@ -45,10 +45,9 @@ impl SyntaxHighlighter {
         // To obtain an owned `Theme`, we call `BTreeMap::remove()` instead of `BTreeMap::get()`.
         // This is fine because we do not need the entire `ThemeSet` after this.
         // (If we did, we could just call `ThemeSet::load_defaults()` again.)
-        let theme = ThemeSet::load_defaults()
-            .themes
-            .remove(theme)
-            .unwrap_or_else(|| panic!("default theme set should include \"{theme}\""));
+        let Some(theme) = ThemeSet::load_defaults().themes.remove(theme) else {
+            panic!("default theme set should include \"{theme}\"");
+        };
 
         Self { syntaxes, theme }
     }
