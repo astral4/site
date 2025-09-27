@@ -16,7 +16,7 @@ use lightningcss::{
 use std::{collections::HashSet, hint::unreachable_unchecked};
 
 /// Parses the input string as CSS. This function returns:
-/// - two minified CSS strings (one contains all `@font-face` rules; one contains none)
+/// - two minified CSS strings (one contains only the `@font-face` rules; one contains everything else)
 /// - a list of font dependencies (highest-priority sources only)
 ///
 /// Output CSS is compatible with a set of "reasonable" target browser versions.
@@ -52,7 +52,7 @@ pub fn transform_css(source: &str) -> Result<CssOutput> {
     stylesheet
         .minify(MinifyOptions {
             targets,
-            unused_symbols: HashSet::default(), // This is required to be `std::collections::HashSet`
+            unused_symbols: HashSet::default(), // We are required to use `std::hash::RandomState`, so no `foldhash` here
         })
         .context("failed to minify CSS")?;
 
