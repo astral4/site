@@ -54,12 +54,14 @@ impl<'a> ActiveImageState<'a> {
     /// Increments the nesting level.
     /// This is used when the start of an image element is encountered within the context.
     pub fn nest(&mut self) {
+        debug_assert_ne!(self.nesting_level, usize::MAX);
         self.nesting_level += 1;
     }
 
     /// Decrements the nesting level.
     /// This is used when the end of an image element is encountered within the context.
     pub fn unnest(&mut self) {
+        debug_assert_ne!(self.nesting_level, usize::MIN);
         self.nesting_level -= 1;
     }
 
