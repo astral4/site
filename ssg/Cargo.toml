@@ -15,22 +15,22 @@ anyhow.workspace = true
 camino.workspace = true
 common = { path = "../common/" }
 ego-tree = "0.10.0"
-foldhash = "0.1.5"
-glob = "0.3.2"
+foldhash = "0.2.0"
+glob = "0.3.3"
 gray_matter = { version = "0.3.2", default-features = false, features = ["yaml"] }
-image = { version = "0.25.6", default-features = false, features = ["avif", "gif", "jpeg", "png", "webp"] }
+image = { version = "0.25.8", default-features = false, features = ["avif", "gif", "jpeg", "png", "webp"] }
 include_dir = "0.7.4"
 jiff = { version = "0.2.15", default-features = false, features = ["alloc", "serde", "std"] }
 lightningcss = { version = "1.0.0-alpha.67", default-features = false, features = ["browserslist", "into_owned"] }
 markup5ever = "0.35.0"
-phf = { version = "0.12.1", features = ["macros"] }
+phf = { version = "0.13.1", features = ["macros"] }
 pulldown-cmark = { version = "0.13.0", default-features = false, features = ["html", "simd"] }
 rquickjs = { version = "0.9.0", features = ["parallel", "rust-alloc"] }
 same-file = "1.0.6"
-scraper = { git = "https://github.com/rust-scraper/scraper.git", rev = "8327eda33e18a1262c0202f91aa02615e85e3d29", default-features = false, features = ["deterministic", "errors"] }
-serde = "1.0.219"
-syntect = { version = "5.2.0", default-features = false, features = ["default-syntaxes", "default-themes", "html", "regex-onig"] }
-toml_edit = { version = "0.23.2", default-features = false, features = ["parse", "serde"] }
+scraper = { git = "https://github.com/rust-scraper/scraper.git", rev = "786b6edd05f330019b9a47c71dce4716feb28a24", default-features = false, features = ["deterministic", "errors"] }
+serde = "1.0.228"
+syntect = { version = "5.3.0", default-features = false, features = ["default-syntaxes", "default-themes", "html", "regex-onig"] }
+toml_edit = { version = "0.23.6", default-features = false, features = ["parse", "serde"] }
 
 [lints]
 workspace = true

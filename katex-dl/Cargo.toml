@@ -14,8 +14,8 @@ aho-corasick.workspace = true
 anyhow.workspace = true
 camino.workspace = true
 common = { path = "../common/" }
-regex = "1.11.1"
-reqwest = { version = "0.12.22", default-features = false, features = ["http2", "rustls-tls"] }
+regex = "1.11.3"
+reqwest = { version = "0.12.23", default-features = false, features = ["http2", "rustls-tls"] }
 tokio = { version = "1.47.1", features = ["macros", "rt-multi-thread"] }
 
 [lints]
