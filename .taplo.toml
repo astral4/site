@@ -1,3 +1,0 @@
-# Prevent formatter from expanding arrays into new lines
-[formatting]
-column_width = 999
