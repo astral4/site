@@ -15,7 +15,7 @@ use syntect::{
 };
 
 // Names of themes in the default theme set
-// https://docs.rs/syntect/5.2.0/syntect/highlighting/struct.ThemeSet.html#method.load_defaults
+// https://docs.rs/syntect/5.3.0/syntect/highlighting/struct.ThemeSet.html#method.load_defaults
 pub(crate) const THEME_NAMES: Set<&str> = phf_set! {
     "base16-ocean.dark",
     "base16-eighties.dark",
