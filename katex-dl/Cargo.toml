@@ -1,6 +1,6 @@
 [package]
 name = "katex-dl"
-version = "1.0.3"
+version = "1.0.4"
 authors.workspace = true
 edition.workspace = true
 description = "KaTeX distribution downloader for vendoring purposes"

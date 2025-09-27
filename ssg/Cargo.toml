@@ -1,6 +1,6 @@
 [package]
 name = "ssg"
-version = "1.1.7"
+version = "1.2.0"
 authors.workspace = true
 edition.workspace = true
 description = "Static site generator for my personal website"
