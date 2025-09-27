@@ -1,4 +1,4 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use camino::{Utf8Path, Utf8PathBuf};
 use foldhash::{HashMap, HashMapExt, HashSet, HashSetExt};
 use glob::glob;
@@ -16,7 +16,6 @@ use ssg::{
 use std::{
     collections::hash_map::Entry,
     fs::{copy, create_dir, create_dir_all, read_to_string, write},
-    path::Path,
 };
 
 fn main() -> Result<()> {
@@ -24,7 +23,7 @@ fn main() -> Result<()> {
     let config = Config::from_env().context("failed to read configuration file")?;
 
     // Create output directories
-    create_dir_all(&config.output_dir).context("failed to create output directory")?;
+    create_dir_all(config.output_dir.as_ref()).context("failed to create output directory")?;
     create_dir(config.output_dir.join(OUTPUT_CSS_DIR))
         .context("failed to create output CSS directory")?;
     create_dir(config.output_dir.join(OUTPUT_FONTS_DIR))
@@ -37,7 +36,7 @@ fn main() -> Result<()> {
         css,
         font_css,
         top_fonts,
-    } = read_to_string(&config.site_css_file)
+    } = read_to_string(config.site_css_file.as_ref())
         .context("failed to read site CSS file")
         .and_then(|css| transform_css(&css).context("failed to minify site CSS"))?;
 
@@ -48,9 +47,9 @@ fn main() -> Result<()> {
         .context("failed to write math CSS to output destination")?;
 
     // Get site HTML templates
-    let head_template_text = read_to_string(config.head_template_html_file)
+    let head_template_text = read_to_string(config.head_template_html_file.as_ref())
         .context("failed to read head HTML template file")?;
-    let body_template_text = read_to_string(config.body_template_html_file)
+    let body_template_text = read_to_string(config.body_template_html_file.as_ref())
         .context("failed to read body HTML template file")?;
 
     // Create page builder (template for every page)
@@ -69,18 +68,18 @@ fn main() -> Result<()> {
     for fragment in config.fragments {
         // Get fragment path's stem; determines the output path
         let stem = fragment.path.file_stem().expect(
-        "fragment path should include file name if validation in `Config::from_env()` was successful",
+            "fragment path should include file name if validation in `Config::from_env()` was successful"
         );
 
         (|| {
             // Check for fragment stem collisions
             if !fragment_stems.insert(stem.to_owned()) {
-                bail!("duplicate fragment slug found: {stem:?}");
+                bail!("duplicate fragment slug found: {stem}");
             }
 
             // Get fragment text
             let fragment_text =
-                read_to_string(&fragment.path).context("failed to read fragment file")?;
+                read_to_string(fragment.path.as_ref()).context("failed to read fragment file")?;
 
             // Build complete page from fragment
             let html = page_builder
@@ -92,17 +91,16 @@ fn main() -> Result<()> {
                 config.output_dir.join("index.html")
             } else {
                 let dir = config.output_dir.join(stem);
-                create_dir(&dir)
-                    .with_context(|| format!("failed to create directory at {dir:?}"))?;
+                create_dir(&dir).with_context(|| format!("failed to create directory at {dir}"))?;
                 dir.join("index.html")
             };
 
             write(&output_path, html)
-                .with_context(|| format!("failed to write HTML to {output_path:?}"))?;
+                .with_context(|| format!("failed to write HTML to {output_path}"))?;
 
             Ok(())
         })()
-        .with_context(|| format!("failed to process fragment at {:?}", fragment.path))?;
+        .with_context(|| format!("failed to process fragment at {}", fragment.path))?;
     }
 
     // Check for duplicate slugs from articles' frontmatter so every article has a unique output directory
@@ -124,7 +122,13 @@ fn main() -> Result<()> {
         .collect();
 
     for entry in glob(article_match_pattern.as_str()).expect("article glob pattern is valid") {
-        let entry_path = entry.context("failed to access entry in articles directory")?;
+        #[allow(clippy::unnecessary_debug_formatting)]
+        let entry_path = Utf8PathBuf::from_path_buf(
+            entry.context("failed to access entry in articles directory")?,
+        )
+        .map_err(|path| {
+            anyhow!("name of entry in articles directory is not valid UTF-8: {path:?}")
+        })?;
 
         let input_article_dir = entry_path
             .parent()
@@ -155,7 +159,7 @@ fn main() -> Result<()> {
                 .join(&*article_frontmatter.slug);
 
             create_dir(&output_article_dir).with_context(|| {
-                format!("failed to create output article directory at {output_article_dir:?}")
+                format!("failed to create output article directory at {output_article_dir}")
             })?;
 
             // Convert article from Markdown to HTML
@@ -173,7 +177,7 @@ fn main() -> Result<()> {
             // Write article HTML to a file in the output article directory
             let output_article_path = output_article_dir.join("index.html");
             write(&output_article_path, article_html).with_context(|| {
-                format!("failed to write article HTML to {output_article_path:?}")
+                format!("failed to write article HTML to {output_article_path}")
             })?;
 
             archive_builder.add_article(
@@ -184,7 +188,7 @@ fn main() -> Result<()> {
 
             Ok(())
         })()
-        .with_context(|| format!("failed to process article at {entry_path:?}"))?;
+        .with_context(|| format!("failed to process article at {entry_path}"))?;
     }
 
     let archive_html = archive_builder.into_html(&page_builder);
@@ -193,7 +197,7 @@ fn main() -> Result<()> {
         .join(OUTPUT_CONTENT_DIR)
         .join("index.html");
     write(&output_path, archive_html)
-        .with_context(|| format!("failed to write article archive HTML to {output_path:?}"))?;
+        .with_context(|| format!("failed to write article archive HTML to {output_path}"))?;
 
     Ok(())
 }
@@ -203,8 +207,8 @@ fn build_article(
     frontmatter: &Frontmatter,
     syntax_highlighter: &SyntaxHighlighter,
     latex_converter: &LatexConverter,
-    input_dir: &Path,
-    output_dir: &Path,
+    input_dir: &Utf8Path,
+    output_dir: &Utf8Path,
     page_builder: &PageBuilder,
 ) -> Result<String> {
     // Transform Markdown components
@@ -301,7 +305,7 @@ fn build_article(
 
                 let input_path = input_dir.join(&*dest_url);
                 let input_handle = Handle::from_path(&input_path)
-                    .with_context(|| format!("failed to open file at {input_path:?}"))?;
+                    .with_context(|| format!("failed to open file at {input_path}"))?;
 
                 let new_state = if input_path
                     .extension()
@@ -310,7 +314,7 @@ fn build_article(
                     let output_path = output_dir.join(&*dest_url);
                     copy(&input_path, &output_path)
                         .with_context(|| {
-                            format!("failed to copy file from {input_path:?} to {output_path:?}")
+                            format!("failed to copy file from {input_path} to {output_path}")
                         })
                         .context("failed to process image")?;
 

@@ -1,24 +1,24 @@
 //! Code for reading the app config from a TOML file. The config file path is supplied via the command line.
 
 use crate::highlight::THEME_NAMES;
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{bail, Context, Result};
 use camino::Utf8Path;
 use foldhash::{HashSet, HashSetExt};
 use same_file::Handle;
 use serde::Deserialize;
-use std::{env::args, ffi::OsStr, fs::read_to_string, path::Path};
+use std::{env::args, fs::read_to_string};
 use toml_edit::de::from_str as toml_from_str;
 
 macro_rules! transform_paths {
-    ($config:expr, $base_path:expr, [$( $field_path:ident: $path_ty:ty ),*]) => {
+    ($config:expr, $base_path:expr, [$( $field_path:ident ),*]) => {
         $(
-            $config.$field_path = <$path_ty>::new($base_path)
+            $config.$field_path = ::camino::Utf8Path::new($base_path)
                 .parent()
                 // We expect the parent to exist because otherwise
                 // the config path does not point to a file and cannot be read from
                 .expect("config file path should have parent")
                 .join(&$config.$field_path)
-                .into_boxed_path();
+                .into();
         )*
     };
 }
@@ -26,13 +26,13 @@ macro_rules! transform_paths {
 #[derive(Deserialize)]
 pub struct Config {
     // Path to directory for generated site output
-    pub output_dir: Box<Path>,
+    pub output_dir: Box<Utf8Path>,
     // Path to site-wide CSS file
-    pub site_css_file: Box<Path>,
+    pub site_css_file: Box<Utf8Path>,
     // Path to site-wide head template HTML file
-    pub head_template_html_file: Box<Path>,
+    pub head_template_html_file: Box<Utf8Path>,
     // Path to site-wide body template HTML file
-    pub body_template_html_file: Box<Path>,
+    pub body_template_html_file: Box<Utf8Path>,
     // List of titles and paths for all webpage fragment files;
     // for non-article pages like the site index and the "about" page
     pub fragments: Box<[Fragment]>,
@@ -45,7 +45,7 @@ pub struct Config {
 #[derive(Deserialize)]
 pub struct Fragment {
     pub title: Box<str>,
-    pub path: Box<Path>,
+    pub path: Box<Utf8Path>,
 }
 
 impl Config {
@@ -85,15 +85,16 @@ impl Config {
             config,
             &config_path,
             [
-                output_dir: Path,
-                site_css_file: Path,
-                head_template_html_file: Path,
-                body_template_html_file: Path,
-                articles_dir: Utf8Path
+                output_dir,
+                site_css_file,
+                head_template_html_file,
+                body_template_html_file,
+                articles_dir
             ]
         );
+
         for fragment in &mut config.fragments {
-            transform_paths!(fragment, &config_path, [path: Path]);
+            transform_paths!(fragment, &config_path, [path]);
         }
 
         // Validate config settings
@@ -107,27 +108,27 @@ impl Config {
             bail!("`theme`: {} is an invalid theme name", self.code_theme);
         } else if self.output_dir.is_dir() {
             bail!(
-                "`output_dir`: {:?} already exists as a directory",
+                "`output_dir`: {} already exists as a directory",
                 self.output_dir
             );
         } else if !self.articles_dir.is_dir() {
             bail!(
-                "`articles_dir`: {:?} could not be opened or does not point to a directory",
+                "`articles_dir`: {} could not be opened or does not point to a directory",
                 self.articles_dir
             );
         } else if !self.site_css_file.is_file() {
             bail!(
-                "`site_css_file`: {:?} could not be opened or does not point to a file",
+                "`site_css_file`: {} could not be opened or does not point to a file",
                 self.site_css_file
             );
         } else if !self.head_template_html_file.is_file() {
             bail!(
-                "`head_template_html_file`: {:?} could not be opened or does not point to a file",
+                "`head_template_html_file`: {} could not be opened or does not point to a file",
                 self.head_template_html_file
             );
         } else if !self.body_template_html_file.is_file() {
             bail!(
-                "`body_template_html_file`: {:?} could not be opened or does not point to a file",
+                "`body_template_html_file`: {} could not be opened or does not point to a file",
                 self.body_template_html_file
             );
         }
@@ -136,13 +137,13 @@ impl Config {
         let mut fragment_paths = HashSet::with_capacity(self.fragments.len());
 
         for fragment in &self.fragments {
-            if fragment.path.file_stem().is_none_or(OsStr::is_empty) {
+            if fragment.path.file_stem().is_none_or(str::is_empty) {
                 bail!("`fragments`: empty file name found");
             }
 
-            let handle = Handle::from_path(&fragment.path).with_context(|| {
+            let handle = Handle::from_path(fragment.path.as_ref()).with_context(|| {
                 format!(
-                    "`fragments`: {:?} could not be opened or does not point to a file",
+                    "`fragments`: {} could not be opened or does not point to a file",
                     fragment.path
                 )
             })?;

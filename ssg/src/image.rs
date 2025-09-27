@@ -5,7 +5,7 @@ use anyhow::{bail, Context, Result};
 use camino::{Utf8Component, Utf8Path};
 use image::{codecs::avif::AvifEncoder, GenericImageView, ImageEncoder, ImageReader};
 use pulldown_cmark::CowStr;
-use std::{fs::File, io::BufWriter, ops::Range, path::Path};
+use std::{fs::File, io::BufWriter, ops::Range};
 
 pub const OUTPUT_IMAGE_EXTENSION: &str = "avif";
 
@@ -160,8 +160,8 @@ pub fn validate_image_src(url: &str) -> Result<()> {
 /// - the file at the input image path cannot be opened or read from
 /// - the file at the output file path cannot be created or written to
 pub fn convert_image(
-    input_article_dir: &Path,
-    output_article_dir: &Path,
+    input_article_dir: &Utf8Path,
+    output_article_dir: &Utf8Path,
     image_path: &str,
 ) -> Result<Dimensions> {
     let input_path = input_article_dir.join(image_path);
@@ -170,20 +170,20 @@ pub fn convert_image(
         .with_extension(OUTPUT_IMAGE_EXTENSION);
 
     let image = ImageReader::open(&input_path)
-        .with_context(|| format!("failed to open file at {input_path:?}"))?
+        .with_context(|| format!("failed to open file at {input_path}"))?
         .decode()
-        .with_context(|| format!("failed to read image from {input_path:?}"))?;
+        .with_context(|| format!("failed to read image from {input_path}"))?;
 
     let (width, height) = image.dimensions();
 
     let writer = BufWriter::new(
         File::create(&output_path)
-            .with_context(|| format!("failed to create file at {output_path:?}"))?,
+            .with_context(|| format!("failed to create file at {output_path}"))?,
     );
 
     AvifEncoder::new_with_speed_quality(writer, ENCODER_SPEED, 80)
         .write_image(image.as_bytes(), width, height, image.color().into())
-        .with_context(|| format!("failed to write image to {output_path:?}"))?;
+        .with_context(|| format!("failed to write image to {output_path}"))?;
 
     Ok(Dimensions { width, height })
 }

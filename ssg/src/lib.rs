@@ -26,14 +26,15 @@ const KATEX_CSS: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../ka
 const KATEX_FONTS: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/../katex/fonts/");
 
 use anyhow::{Context, Result};
+use camino::Utf8Path;
 use include_dir::{include_dir, Dir};
-use std::{fs::write, path::Path};
+use std::fs::write;
 
 /// Saves the KaTeX CSS and font files for math markup to the output directory.
 ///
 /// # Errors
 /// This function returns an error if files cannot be written to the destination.
-pub fn save_math_assets(output_dir: &Path) -> Result<()> {
+pub fn save_math_assets(output_dir: &Utf8Path) -> Result<()> {
     write(output_dir.join(OUTPUT_KATEX_CSS_FILE), KATEX_CSS)
         .context("failed to write KaTeX CSS to output destination")?;
 
