@@ -1,17 +1,17 @@
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use camino::{Utf8Path, Utf8PathBuf};
 use foldhash::{HashMap, HashMapExt, HashSet, HashSetExt};
 use glob::glob;
 use pulldown_cmark::{
-    html::push_html, CodeBlockKind, CowStr, Event, Options, Parser, Tag, TagEnd,
-    TextMergeWithOffset,
+    CodeBlockKind, CowStr, Event, Options, Parser, Tag, TagEnd, TextMergeWithOffset,
+    html::push_html,
 };
 use same_file::Handle;
 use ssg::{
-    convert_image, save_math_assets, transform_css, validate_image_src, ActiveImageState,
-    ArchiveBuilder, Config, CssOutput, Frontmatter, LatexConverter, PageBuilder, PageKind,
-    RenderMode, SyntaxHighlighter, OUTPUT_CONTENT_DIR, OUTPUT_CSS_DIR, OUTPUT_FONTS_DIR,
-    OUTPUT_IMAGE_EXTENSION, OUTPUT_SITE_CSS_FILE,
+    ActiveImageState, ArchiveBuilder, Config, CssOutput, Frontmatter, LatexConverter,
+    OUTPUT_CONTENT_DIR, OUTPUT_CSS_DIR, OUTPUT_FONTS_DIR, OUTPUT_IMAGE_EXTENSION,
+    OUTPUT_SITE_CSS_FILE, PageBuilder, PageKind, RenderMode, SyntaxHighlighter, convert_image,
+    save_math_assets, transform_css, validate_image_src,
 };
 use std::{
     collections::hash_map::Entry,

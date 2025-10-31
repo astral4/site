@@ -1,8 +1,8 @@
 //! Code for parsing YAML-style frontmatter from articles.
 
 use aho_corasick::AhoCorasick;
-use anyhow::{anyhow, bail, Context, Result};
-use gray_matter::{engine::YAML, Matter};
+use anyhow::{Context, Result, anyhow, bail};
+use gray_matter::{Matter, engine::YAML};
 use jiff::civil::Date;
 use serde::Deserialize;
 use std::sync::OnceLock;
@@ -159,7 +159,7 @@ mod test {
     fn timezones() {
         // Parsing timezones from date fields is not supported
         assert_parse_err(
-            "---\ntitle: abc\nslug: def\ncreated: 2000-01-01T00:00Z\nupdated: 2000-01-02T00:00-01:00\n---"
+            "---\ntitle: abc\nslug: def\ncreated: 2000-01-01T00:00Z\nupdated: 2000-01-02T00:00-01:00\n---",
         );
     }
 

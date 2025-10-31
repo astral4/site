@@ -5,8 +5,8 @@ use lightningcss::{
     error::Error,
     printer::PrinterOptions,
     rules::{
-        font_face::{FontFaceProperty, FontFormat, Source},
         CssRule, CssRuleList,
+        font_face::{FontFaceProperty, FontFormat, Source},
     },
     stylesheet::{MinifyOptions, ParserFlags, ParserOptions, StyleSheet},
     targets::{Browsers, Features, Targets},
@@ -153,7 +153,7 @@ pub struct Font {
 
 #[cfg(test)]
 mod test {
-    use super::{transform_css, CssOutput, Font};
+    use super::{CssOutput, Font, transform_css};
 
     #[test]
     fn no_fonts() {

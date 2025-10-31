@@ -8,10 +8,10 @@ mod latex;
 
 pub use builder::{ArchiveBuilder, PageBuilder, PageKind};
 pub use config::{Config, Fragment};
-pub use css::{transform_css, CssOutput, Font};
+pub use css::{CssOutput, Font, transform_css};
 pub use frontmatter::Frontmatter;
 pub use highlight::SyntaxHighlighter;
-pub use image::{convert_image, validate_image_src, ActiveImageState, OUTPUT_IMAGE_EXTENSION};
+pub use image::{ActiveImageState, OUTPUT_IMAGE_EXTENSION, convert_image, validate_image_src};
 pub use latex::{LatexConverter, RenderMode};
 
 pub use common::OUTPUT_FONTS_DIR;
@@ -27,7 +27,7 @@ const KATEX_FONTS: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/../katex/fonts/")
 
 use anyhow::{Context, Result};
 use camino::Utf8Path;
-use include_dir::{include_dir, Dir};
+use include_dir::{Dir, include_dir};
 use std::fs::write;
 
 /// Saves the KaTeX CSS and font files for math markup to the output directory.

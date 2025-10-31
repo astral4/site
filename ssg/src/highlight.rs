@@ -1,14 +1,14 @@
 //! Utility for highlighting code in articles by converting Markdown code blocks to styled HTML.
 
-use anyhow::{anyhow, Result};
-use phf::{phf_set, Set};
+use anyhow::{Result, anyhow};
+use phf::{Set, phf_set};
 use std::borrow::Cow;
 use syntect::{
     easy::HighlightLines,
     highlighting::{FontStyle, Style, Theme, ThemeSet, ThemeSettings},
     html::{
-        append_highlighted_html_for_styled_line, start_highlighted_html_snippet,
-        styled_line_to_highlighted_html, IncludeBackground,
+        IncludeBackground, append_highlighted_html_for_styled_line, start_highlighted_html_snippet,
+        styled_line_to_highlighted_html,
     },
     parsing::SyntaxSet,
     util::LinesWithEndings,

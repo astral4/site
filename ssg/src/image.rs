@@ -1,9 +1,9 @@
 //! Utility for converting images in articles to AVIF.
 
 use crate::builder::create_img_html;
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use camino::{Utf8Component, Utf8Path};
-use image::{codecs::avif::AvifEncoder, GenericImageView, ImageEncoder, ImageReader};
+use image::{GenericImageView, ImageEncoder, ImageReader, codecs::avif::AvifEncoder};
 use pulldown_cmark::CowStr;
 use std::{fs::File, io::BufWriter, ops::Range};
 

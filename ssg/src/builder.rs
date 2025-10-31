@@ -1,13 +1,13 @@
 //! Code for building complete HTML pages from article bodies.
 
-use crate::{css::Font, OUTPUT_SITE_CSS_FILE_ABSOLUTE};
-use anyhow::{bail, Context, Error, Result};
-use ego_tree::{tree, NodeId, NodeMut, Tree};
+use crate::{OUTPUT_SITE_CSS_FILE_ABSOLUTE, css::Font};
+use anyhow::{Context, Error, Result, bail};
+use ego_tree::{NodeId, NodeMut, Tree, tree};
 use jiff::civil::Date;
-use markup5ever::{interface::QuirksMode, ns, tendril::Tendril, Attribute, QualName};
+use markup5ever::{Attribute, QualName, interface::QuirksMode, ns, tendril::Tendril};
 use scraper::{
-    node::{Doctype, Element, Node, Text},
     Html,
+    node::{Doctype, Element, Node, Text},
 };
 
 const OUTPUT_KATEX_CSS_FILE: &str = "/stylesheets/katex.css";
@@ -406,7 +406,7 @@ fn tree_to_html(tree: Tree<Node>) -> String {
 
 #[cfg(test)]
 mod test {
-    use super::{contains_math, create_el, create_el_with_attrs, parse_html, PageKind};
+    use super::{PageKind, contains_math, create_el, create_el_with_attrs, parse_html};
     use jiff::civil::Date;
     use scraper::{Html, Node};
 

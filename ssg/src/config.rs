@@ -1,7 +1,7 @@
 //! Code for reading the app config from a TOML file. The config file path is supplied via the command line.
 
 use crate::highlight::THEME_NAMES;
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use camino::Utf8Path;
 use foldhash::{HashSet, HashSetExt};
 use same_file::Handle;
