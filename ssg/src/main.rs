@@ -19,7 +19,6 @@ use std::{
 };
 
 fn main() -> Result<()> {
-    // Read configuration
     let config = Config::from_env().context("failed to read configuration file")?;
 
     // Create output directories
@@ -61,32 +60,26 @@ fn main() -> Result<()> {
     )
     .context("failed to process HTML templates")?;
 
-    // Check for duplicate fragment file stems so every fragment has a unique output path
     let mut fragment_stems = HashSet::new();
 
     // Process all fragment files
     for fragment in config.fragments {
-        // Get fragment path's stem; determines the output path
         let stem = fragment.path.file_stem().expect(
             "fragment path should include file name if validation in `Config::from_env()` was successful"
         );
 
         (|| {
-            // Check for fragment stem collisions
+            // Check for fragment stem collisions to ensure every fragment has a unique output path
             if !fragment_stems.insert(stem.to_owned()) {
                 bail!("duplicate fragment slug found: {stem}");
             }
 
-            // Get fragment text
             let fragment_text =
                 read_to_string(fragment.path.as_ref()).context("failed to read fragment file")?;
-
-            // Build complete page from fragment
             let html = page_builder
                 .build_page(&fragment.title, &fragment_text, PageKind::Fragment)
                 .context("failed to parse fragment as valid HTML")?;
 
-            // Create output path
             let output_path = if stem == "index" {
                 config.output_dir.join("index.html")
             } else {
@@ -103,16 +96,12 @@ fn main() -> Result<()> {
         .with_context(|| format!("failed to process fragment at {}", fragment.path))?;
     }
 
-    // Check for duplicate slugs from articles' frontmatter so every article has a unique output directory
     let mut article_slugs = HashSet::new();
 
     // Build a page linking to all articles
     let mut archive_builder = ArchiveBuilder::new();
 
-    // Initialize syntax highlighter for article text
     let syntax_highlighter = SyntaxHighlighter::new(&config.code_theme);
-
-    // Initialize LaTeX-to-HTML converter for article text
     let latex_converter =
         LatexConverter::new().context("failed to initialize LaTeX-to-HTML converter")?;
 
@@ -139,20 +128,17 @@ fn main() -> Result<()> {
         }
 
         (|| {
-            // Get article text
             let article_text =
                 read_to_string(&entry_path).context("failed to read article file")?;
 
-            // Parse frontmatter from article text
             let article_frontmatter = Frontmatter::from_text(&article_text)
                 .context("failed to read article frontmatter")?;
 
-            // Check for article slug collisions
+            // Check for article slug collisions to ensure every article has a unique output directory
             if !article_slugs.insert(article_frontmatter.slug.clone()) {
                 bail!("duplicate article slug found: {}", article_frontmatter.slug);
             }
 
-            // Create output article directory
             let output_article_dir = config
                 .output_dir
                 .join(OUTPUT_CONTENT_DIR)
@@ -174,7 +160,6 @@ fn main() -> Result<()> {
             )
             .context("failed to build article HTML")?;
 
-            // Write article HTML to a file in the output article directory
             let output_article_path = output_article_dir.join("index.html");
             write(&output_article_path, article_html).with_context(|| {
                 format!("failed to write article HTML to {output_article_path}")
@@ -211,20 +196,21 @@ fn build_article(
     output_dir: &Utf8Path,
     page_builder: &PageBuilder,
 ) -> Result<String> {
-    // Transform Markdown components
     let mut events = Vec::new();
 
-    // Check for duplicate image links to avoid redundant image processing
+    // Check for duplicate image links to avoid redundant processing
     let mut image_links = HashMap::new();
-    // Track image parsing state to support image alt text
+
+    // Track image parsing state for image alt text
     let mut active_image_state: Option<ActiveImageState<'_>> = None;
-    // Track code block parsing state to support syntax highlighting
+
+    // Track code block parsing state for syntax highlighting
     let mut is_in_code_block = false;
     let mut code_language = None;
-    // Check for footnote references without definitions (and vice versa) so all footnote links work
+
     let mut footnote_references = HashSet::new();
     let mut footnote_definitions = HashSet::new();
-    // Record existence of math markup to support KaTeX formatting
+
     let mut contains_math = false;
 
     for (event, offset) in TextMergeWithOffset::new(
@@ -372,11 +358,9 @@ fn build_article(
         bail!("found a footnote definition ID without references: {id}");
     }
 
-    // Serialize article body to HTML
     let mut article_body = String::with_capacity(markdown.len() * 3 / 2);
     push_html(&mut article_body, events.into_iter());
 
-    // Build complete page
     page_builder
         .build_page(
             &frontmatter.title,

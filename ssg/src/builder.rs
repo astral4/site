@@ -35,7 +35,6 @@ impl PageBuilder {
         site_fonts: &[Font],
         inline_styles: &str,
     ) -> Result<Self> {
-        // Parse templates into trees of HTML nodes
         let head_template =
             parse_html(head_template).context("failed to parse head HTML template")?;
         let body_template =
@@ -172,9 +171,9 @@ impl PageBuilder {
             // Create the article heading tree with the following structure:
             // Node::Fragment -> { Node::Fragment -> { <contents> }}
             let mut article_heading = Tree::new(Node::Fragment);
+
             let mut next = article_heading.root_mut();
             let mut next = next.append(Node::Fragment);
-
             let mut article_heading_root = next.append(create_el_with_attrs(
                 "hgroup",
                 &[("class", "__article-heading")],
@@ -274,7 +273,8 @@ impl ArchiveBuilder {
             }
         });
 
-        // Sort articles by creation date in reverse chronological order, then by title in reverse lexicographical order
+        // Sort articles by creation date in reverse chronological order,
+        // then by title in reverse lexicographical order
         self.0
             .sort_unstable_by(|a, b| b.created.cmp(&a.created).then(b.title.cmp(&a.title)));
 

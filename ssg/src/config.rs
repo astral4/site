@@ -73,7 +73,6 @@ impl Config {
             bail!("too many input arguments were provided");
         }
 
-        // Parse config
         let mut config: Self = toml_from_str(
             &read_to_string(&config_path)
                 .with_context(|| format!("failed to read configuration from {config_path}"))?,
